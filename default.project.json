@@ -9,16 +9,18 @@
       },
       "Remotes": {
         "$className": "Folder",
-        "SpinRequest": {
-          "$className": "RemoteEvent"
-        },
-        "SpinResult": {
-          "$className": "RemoteEvent"
-        }
+        "ClientReady": { "$className": "RemoteEvent" },
+        "SpinRequest": { "$className": "RemoteEvent" },
+        "SpinResult": { "$className": "RemoteEvent" },
+        "InitialState": { "$className": "RemoteEvent" },
+        "StateUpdate": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {
-      "$path": "src/ServerScriptService"
+      "$className": "ServerScriptService",
+      "Server": {
+        "$path": "src/ServerScriptService"
+      }
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
