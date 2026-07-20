@@ -1,4 +1,4 @@
-# Roll-a-Stream — Mega Design Document
+# Roll-a-Stream: Mega Design Document
 
 Roll-a-Stream is a Roblox gacha-idle game: players spin to collect streamer
 creators, each of which passively earns currency ("Streamer Bucks") based on
@@ -12,16 +12,16 @@ tracks the full roadmap; the **Status** column says what's actually built.
 
 | Phase | Status | Scope |
 |---|---|---|
-| **Phase 1 — Core Loop** | ✅ Built | Spin button, weighted gacha roll, 25-streamer roster, passive income, side-bar inventory |
-| **Phase 2 — Backend Foundation** | ✅ Built | Production-grade rebuild: profiles, saving, sessions, inventory, collection, economy, RNG, config, server authority, networking, validation, lifecycle, expansion hooks |
-| Phase 3 — Progression systems | 🔲 Not started | Placeholder — spec TBD |
-| Phase 4 — Presentation / content | 🔲 Not started | Placeholder — reveal cinematics, banners, regions, cosmetics |
+| **Phase 1: Core Loop** | Built | Spin button, weighted gacha roll, 25-streamer roster, passive income, side-bar inventory |
+| **Phase 2: Backend Foundation** | Built | Production-grade rebuild: profiles, saving, sessions, inventory, collection, economy, RNG, config, server authority, networking, validation, lifecycle, expansion hooks |
+| Phase 3: Progression systems | Not started | Placeholder, spec TBD |
+| Phase 4: Presentation / content | Not started | Placeholder: reveal cinematics, banners, regions, cosmetics |
 
-Phase 2 was a **backend-only** rebuild — a player barely notices a gameplay
+Phase 2 was a **backend-only** rebuild. A player barely notices a gameplay
 difference versus Phase 1, but the systems underneath are now scalable,
 server-authoritative, and ready for content without rewrites. Do not build
 Phase 3+ gameplay (Garage, Lucky Spins, Gamepasses, Codes, Trading, Quests,
-Cinematics, Events) until a phase-specific prompt arrives — only the backend
+Cinematics, Events) until a phase-specific prompt arrives; only the backend
 *seams* those systems will use exist today (see Expansion Hooks below).
 
 ---
@@ -35,17 +35,17 @@ Progression bands (documented in `GameConfig.ProgressionBands`):
 
 | Band | Range | Feel |
 |---|---|---|
-| Early | $0 – $1M | Discovering streamers |
-| Mid | $1M – $1B | Building the roster |
-| Late | $1B – $100B | Chasing Mythics & Secrets |
-| End | $100B – ~$10T | Perfect collection, max upgrades |
+| Early | $0 - $1M | Discovering streamers |
+| Mid | $1M - $1B | Building the roster |
+| Late | $1B - $100B | Chasing Mythics & Secrets |
+| End | $100B - ~$10T | Perfect collection, max upgrades |
 
-Number formatting stops at **K, M, B, T** — nothing larger. There is no Qa,
+Number formatting stops at **K, M, B, T**, nothing larger. There is no Qa,
 Qi, Sx, etc. If a value ever exceeds T, that is a **balancing bug to fix in
 the economy**, not a reason to add a suffix. `EconomyCap` (10e12) hard-clamps
 currency, and startup validation asserts the formatter defines exactly the
 K/M/B/T set. Future progression comes from *content* (collections, upgrades,
-cosmetics, regions, spin machines, challenges, seasonal content) — not bigger
+cosmetics, regions, spin machines, challenges, seasonal content), not bigger
 numbers.
 
 ---
@@ -53,27 +53,27 @@ numbers.
 ## Roster
 
 25 streamers, hand-picked, no filler. Every entry is a name a player
-recognizes on sight. `popularity_score` (1–100) is a **gameplay-balance
+recognizes on sight. `popularity_score` (1-100) is a **gameplay-balance
 value**, tuned by hand and loosely inspired by real-world prominence circa
-2025–2026 — not a live analytics feed. The backend is built to scale to
+2025-2026, not a live analytics feed. The backend is built to scale to
 ~150 streamers without changes.
 
 ### Rarity tiers
 
 Derived from `popularity_score` (`RarityConfig.GetTierForPopularity`). Rarity
-is a full identity, not just a number — each tier also carries card style,
+is a full identity, not just a number; each tier also carries card style,
 reveal effects, audio/animation/particle presets, and cinematic/announcement
 flags (data-only for now, consumed by a future presentation phase).
 
 | Tier | Popularity | Color | Income scaling |
 |---|---|---|---|
-| Common | 1–30 | Gray | ×1 |
-| Uncommon | 31–50 | Green | ×4 |
-| Rare | 51–65 | Blue | ×15 |
-| Epic | 66–80 | Purple | ×60 |
-| Legendary | 81–90 | Gold | ×250 |
-| Mythic | 91–97 | Red | ×1,200 |
-| Secret | 98–100 | Rainbow | ×6,000 |
+| Common | 1-30 | Gray | ×1 |
+| Uncommon | 31-50 | Green | ×4 |
+| Rare | 51-65 | Blue | ×15 |
+| Epic | 66-80 | Purple | ×60 |
+| Legendary | 81-90 | Gold | ×250 |
+| Mythic | 91-97 | Red | ×1,200 |
+| Secret | 98-100 | Rainbow | ×6,000 |
 
 ### Roster & income
 
@@ -132,8 +132,8 @@ Total weight is 771, giving these tier-level roll probabilities (rare = popular
 Every streamer carries the fields future content will use, validated on
 startup:
 
-- **Collection** (exactly one — all launch streamers are `Originals`)
-- **Banners** (at least one — all in `Standard`)
+- **Collection** (exactly one, all launch streamers are `Originals`)
+- **Banners** (at least one, all in `Standard`)
 - **Region** (`NA` / `EU` / `SA` / `Global`)
 - **Featured** flag (all `false` today)
 - **Presentation placeholders** (data-only, no visuals yet):
@@ -151,14 +151,14 @@ roll results, income and statistics are never trusted from the client.
 ### Player profile
 
 One centralized profile per player (`ProfileTemplate`) is the single source of
-saved data — no script keeps its own. It holds economy state, lifetime stats,
+saved data; no script keeps its own. It holds economy state, lifetime stats,
 best pull, stacked inventory, collection discovery dates, unlocked-feature
 gates, settings, and an open `futureFlags` bag. Adding a field to the template
 auto-appears (with its default) on every existing save on next load, with no
 migration and no wipe.
 
 **Validation & repair** (`ProfileService`): a save is never trusted. On load
-every value is checked — missing, wrong type, negative, out of range, or
+every value is checked; missing, wrong type, negative, out of range, or
 referencing an unknown streamer is repaired automatically. If the whole load
 errors, the player gets safe defaults *and* the session is flagged so
 `SaveManager` won't overwrite the (recoverable) real data.
@@ -178,16 +178,16 @@ the profile only ever increase.
 
 ### Inventory (`InventoryService`)
 
-Stacked — duplicates increment `amount`, never a second entry. The client-facing
-view is sorted **server-side** (rarity priority → popularity → alphabetical) so
-the UI never sorts. Each entry remembers first/most-recent pull and carries
+Stacked: duplicates increment `amount`, never a second entry. The client-facing
+view is sorted **server-side** (rarity priority -> popularity -> alphabetical)
+so the UI never sorts. Each entry remembers first/most-recent pull and carries
 future placeholders (`upgradeLevel`, `xp`, `favorite`, `locked`).
 
 ### Collection (`CollectionService`)
 
 Tracks total vs collected vs missing, completion %, first-discovery dates,
 duplicate count, and highest rarity owned. Recomputed only when the inventory
-changes — never on a loop.
+changes, never on a loop.
 
 ### Economy (`EconomyService`) & income (`IncomeService`)
 
@@ -203,22 +203,22 @@ one hook.
 The single random system. One roll function, one weighted selection. Weight is
 inverse to popularity, with neutral hooks for future luck / event / pity
 modifiers so Lucky Spins, Luck Potions and Weekend Events plug in without
-touching core odds. Server-only — clients can't see or influence it.
+touching core odds. Server-only: clients can't see or influence it.
 
 ### Networking (`NetworkService`)
 
-Client → `SpinRequest` ("I want to spin"); server validates (player exists,
+Client sends `SpinRequest` ("I want to spin"); server validates (player exists,
 profile loaded & initialized, not mid-roll, off cooldown), decides the winner,
 awards it, and replies with `SpinResult` (for the reveal) plus a `StateUpdate`
 delta. Spin spam is rejected by the cooldown + in-flight lock. Outbound, the
 server sends one full `InitialState` snapshot (handshaked via `ClientReady`),
-then only *deltas* — currency ticks up every second as a tiny `{currency}`
+then only *deltas*: currency ticks up every second as a tiny `{currency}`
 update; the (small) inventory is sent only when it changes.
 
 ### Lifecycle (`PlayerManager`)
 
-Strict join order: create runtime → load+validate profile → compute income →
-start session → mark initialized (gameplay enabled only now) → send initial
+Strict join order: create runtime -> load+validate profile -> compute income ->
+start session -> mark initialized (gameplay enabled only now) -> send initial
 state. Leaving saves (blocking, with retry) then tears everything down. Shutdown
 saves every player and waits for completion, prioritizing data safety. Exactly
 two background loops exist: one Heartbeat income accumulator and one autosave

@@ -5,7 +5,7 @@ income based on rarity, manage a side-bar inventory. See
 [`MEGA_DESIGN.md`](./MEGA_DESIGN.md) for the full design doc and roadmap.
 
 **Built so far:** Phase 1 (core spin/income/inventory loop) and Phase 2 (a
-production-grade, server-authoritative backend rebuild — profiles, saving,
+production-grade, server-authoritative backend rebuild: profiles, saving,
 sessions, economy, validation, and content-ready expansion hooks). Gameplay
 feels the same as Phase 1; the systems underneath are now scalable.
 
@@ -38,7 +38,7 @@ src/
 ```
 
 `ReplicatedStorage/Remotes` (`ClientReady`, `SpinRequest`, `SpinResult`,
-`InitialState`, `StateUpdate`) is defined directly in `default.project.json` —
+`InitialState`, `StateUpdate`) is defined directly in `default.project.json`.
 Rojo creates those `RemoteEvent` instances on sync.
 
 ## Architecture at a glance
@@ -61,7 +61,7 @@ Rojo creates those `RemoteEvent` instances on sync.
 2. From the repo root: `rojo serve`
 3. In Studio, open the Rojo plugin and click **Connect**.
 4. Press Play. Spinning, income, collection progress and stacking all work.
-   Saving uses real `DataStoreService`: enable **Game Settings → Security →
+   Saving uses real `DataStoreService`: enable **Game Settings > Security >
    Enable Studio Access to API Services** to test persistence in Studio
    (without it, saves safely no-op and each Play session starts fresh).
 
