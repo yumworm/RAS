@@ -46,7 +46,9 @@ local function attemptWithRetry(userId: number): boolean
 	for attempt = 1, maxRetries do
 		if Services.ProfileService.SaveAsync(userId) then
 			if attempt > 1 then
-				Logger.Info("Save", string.format("Save for %d succeeded on retry %d", userId, attempt))
+				Logger.Info("Save", string.format("Saved profile for %d (succeeded on retry %d)", userId, attempt))
+			else
+				Logger.Info("Save", string.format("Saved profile for %d", userId))
 			end
 			return true
 		end
