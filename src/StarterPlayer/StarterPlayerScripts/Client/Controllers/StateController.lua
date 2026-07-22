@@ -16,6 +16,7 @@ StateController.state = {
 	session = nil,
 	settings = nil,
 	economyCap = 0,
+	donation = { robuxDonatedLifetime = 0, donationPurchaseCount = 0, biggestRobuxDonation = 0 },
 }
 
 local listeners = {}

@@ -110,6 +110,42 @@ local function repairInventory(rawInventory, now: number)
 	return repaired
 end
 
+-- Donation stats are uncapped flex values (never clamped to the Bucks economy cap)
+-- and only ever increase. `recentReceipts` is a dynamic array of PurchaseId strings
+-- so, like inventory/discovered, it is repaired explicitly rather than via Reconcile
+-- (which -- given an empty-array template -- would silently wipe it and destroy the
+-- ProcessReceipt idempotency guard).
+local RECENT_RECEIPTS_CAP = 50
+
+local function repairDonation(donation, raw)
+	local source = type(raw) == "table" and raw or {}
+	donation.robuxDonatedLifetime = sanitizeInt(source.robuxDonatedLifetime, 0, 0)
+	donation.donationPurchaseCount = sanitizeInt(source.donationPurchaseCount, 0, 0)
+	donation.biggestRobuxDonation = sanitizeInt(source.biggestRobuxDonation, 0, 0)
+
+	-- Rebuild the recent-receipt ring: string entries only, keep the last N.
+	local receipts = {}
+	local rawReceipts = source.recentReceipts
+	if type(rawReceipts) == "table" then
+		for _, id in ipairs(rawReceipts) do
+			if type(id) == "string" then
+				table.insert(receipts, id)
+			elseif type(id) == "number" then
+				table.insert(receipts, tostring(id))
+			end
+		end
+	end
+	while #receipts > RECENT_RECEIPTS_CAP do
+		table.remove(receipts, 1)
+	end
+	donation.recentReceipts = receipts
+
+	-- Keep the derived invariant sane: biggest can't exceed the lifetime total.
+	if donation.biggestRobuxDonation > donation.robuxDonatedLifetime then
+		donation.biggestRobuxDonation = donation.robuxDonatedLifetime
+	end
+end
+
 local function repairCollection(collection, inventory, now: number)
 	local discovered = {}
 	local raw = collection.discovered
@@ -142,12 +178,14 @@ function ProfileService.ValidateAndRepair(rawData)
 	local rawDiscovered = (type(rawData) == "table" and type(rawData.collection) == "table")
 			and rawData.collection.discovered
 		or nil
+	local rawDonation = (type(rawData) == "table") and rawData.donation or nil
 
 	local profile = TableUtil.Reconcile(rawData, ProfileTemplate.Default())
 
 	profile.schemaVersion = ProfileTemplate.CURRENT_VERSION
 	repairEconomy(profile.economy)
 	repairStats(profile.stats)
+	repairDonation(profile.donation, rawDonation)
 	profile.inventory = repairInventory(rawInventory, now)
 	profile.collection.discovered = rawDiscovered
 	repairCollection(profile.collection, profile.inventory, now)
@@ -200,6 +238,99 @@ function ProfileService.SaveAsync(userId: number): boolean
 		Logger.Warn("Profile", string.format("Save attempt failed for %d: %s", userId, tostring(err)))
 	end
 	return success
+end
+
+-- Credit a confirmed Robux donation to a player, exactly once, whether they are
+-- online or offline. Idempotency is guaranteed atomically: the PurchaseId is
+-- checked against (and appended to) the profile's recentReceipts ring INSIDE the
+-- same OrderedDataStore-style UpdateAsync transaction that applies the credit, so a
+-- duplicate ProcessReceipt retry can never double-credit even if the separate
+-- receipt-store write was lost.
+--
+-- Returns (newLifetime, applied, ok):
+--   ok=false     -> transient DataStore failure; the caller must return
+--                   NotProcessedYet so Roblox retries later.
+--   applied=false-> this PurchaseId was already credited earlier (no change made).
+--   applied=true -> the credit was freshly applied; newLifetime is the new total.
+function ProfileService.CreditDonation(userId: number, amount: number, purchaseId: string)
+	if typeof(amount) ~= "number" or amount ~= amount or amount <= 0 then
+		return 0, false, false
+	end
+	amount = math.floor(amount)
+
+	local key = "Player_" .. userId
+	local newLifetime = 0
+	local applied = false
+
+	local success, err = pcall(function()
+		profileStore:UpdateAsync(key, function(old)
+			-- Repair defends against a nil (brand-new) or corrupt on-disk save and
+			-- guarantees the donation subtree (incl. recentReceipts) exists.
+			local profile = ProfileService.ValidateAndRepair(old)
+			local donation = profile.donation
+
+			-- Idempotency guard: already processed -> abort the write, no credit.
+			for _, id in ipairs(donation.recentReceipts) do
+				if id == purchaseId then
+					applied = false
+					newLifetime = donation.robuxDonatedLifetime
+					return nil -- cancel UpdateAsync; on-disk value is unchanged
+				end
+			end
+
+			donation.robuxDonatedLifetime += amount
+			donation.donationPurchaseCount += 1
+			if amount > donation.biggestRobuxDonation then
+				donation.biggestRobuxDonation = amount
+			end
+			table.insert(donation.recentReceipts, purchaseId)
+			while #donation.recentReceipts > RECENT_RECEIPTS_CAP do
+				table.remove(donation.recentReceipts, 1)
+			end
+
+			applied = true
+			newLifetime = donation.robuxDonatedLifetime
+			return profile
+		end)
+	end)
+
+	if not success then
+		Logger.Error("Donation", string.format("CreditDonation UpdateAsync failed for %d: %s", userId, tostring(err)))
+		return 0, false, false
+	end
+
+	-- If the donor is online, mirror the credit into their live in-memory profile so
+	-- the running session (and its next autosave) reflect the new totals and keep the
+	-- idempotency guard consistent with disk.
+	local live = profiles[userId]
+	if live and applied then
+		local d = live.donation
+		d.robuxDonatedLifetime = newLifetime
+		d.donationPurchaseCount += 1
+		if amount > d.biggestRobuxDonation then
+			d.biggestRobuxDonation = amount
+		end
+		table.insert(d.recentReceipts, purchaseId)
+		while #d.recentReceipts > RECENT_RECEIPTS_CAP do
+			table.remove(d.recentReceipts, 1)
+		end
+	end
+
+	return newLifetime, applied, true
+end
+
+-- Read-only donation snapshot for an online player (safe defaults if absent).
+function ProfileService.GetDonationStats(userId: number)
+	local profile = profiles[userId]
+	if not profile then
+		return { robuxDonatedLifetime = 0, donationPurchaseCount = 0, biggestRobuxDonation = 0 }
+	end
+	local d = profile.donation
+	return {
+		robuxDonatedLifetime = d.robuxDonatedLifetime,
+		donationPurchaseCount = d.donationPurchaseCount,
+		biggestRobuxDonation = d.biggestRobuxDonation,
+	}
 end
 
 function ProfileService.Unload(userId: number)

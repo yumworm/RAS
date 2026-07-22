@@ -14,7 +14,7 @@ tracks the full roadmap; the **Status** column says what's actually built.
 |---|---|---|
 | **Phase 1: Core Loop** | Built | Spin button, weighted gacha roll, 25-streamer roster, passive income, side-bar inventory |
 | **Phase 2: Backend Foundation** | Built | Production-grade rebuild: profiles, saving, sessions, inventory, collection, economy, RNG, config, server authority, networking, validation, lifecycle, expansion hooks |
-| Phase 3: Progression systems | Not started | Placeholder, spec TBD |
+| **Phase 3: Global Donation Stand** | Built | One shared Robux donation stand; secure idempotent `ProcessReceipt` crediting; permanent uncapped `RobuxDonatedLifetime`; global all-time Top 100 Donors board (OrderedDataStore + server cache). No booths, no P2P, no Bucks granted. |
 | Phase 4: Presentation / content | Not started | Placeholder: reveal cinematics, banners, regions, cosmetics |
 
 Phase 2 was a **backend-only** rebuild. A player barely notices a gameplay
@@ -250,14 +250,52 @@ secondary).
 
 ---
 
+## Global Donation Stand (Phase 3)
+
+One shared donation stand for the whole experience -- no player-owned booths, no
+claiming, no player-to-player transfers, no receiver. Any player walks to the
+stand (or taps the top-bar **Donate** button), buys a fixed Developer Product
+with real Robux, and permanently raises their own `RobuxDonatedLifetime`. Roblox
+pays the experience owner as a normal product sale.
+
+**Two currencies, never mixed.** Streamer Bucks stay capped around $10T and
+format K/M/B/T. `RobuxDonatedLifetime` is a separate, uncapped, never-spendable
+flex stat formatted by `FormatRobux` (Qa, Qi, Sx, ...). Donations grant **zero**
+Bucks.
+
+**Crediting is server-only and idempotent.** `MarketplaceService.ProcessReceipt`
+(owned by `RobuxDonationSystem`) is the sole path that awards credit. The amount
+is resolved from `DonationConfig` by product id -- never from the client. Each
+`PurchaseId` credits at most once: the guard lives *inside* the profile's
+`UpdateAsync` transaction (a capped `recentReceipts` ring), so a retry can't
+double-credit even if the separate `DonationReceiptsV1` audit-store write is
+lost. Crediting works whether the donor is online or offline; a non-durable save
+returns `NotProcessedYet` so Roblox retries. Opening a prompt, a client event, or
+`PromptProductPurchaseFinished` never move a single point.
+
+**Global Top 100 board.** `DonationLeaderboard` writes each confirmed lifetime
+total to an OrderedDataStore (`RobuxDonatedGlobalV1`, never decreasing) and
+refreshes a cached Top 100 every 30s. Every client request and the physical
+stand board are served from that one cache (10 viewers = 0 extra store reads).
+On an OrderedDataStore outage the last good cache is kept and flagged stale. The
+world board is a server-built SurfaceGui, so all players see identical data.
+
+**Before a live release (human step):** create eight Developer Products for
+amounts 5/10/25/50/100/250/500/1000 and paste their ids into
+`DonationConfig.ProductIds`. Until an id is non-zero the server refuses to prompt
+that amount and logs a startup warning; startup validation additionally rejects
+colliding product ids and out-of-range limits.
+
+---
+
 ## File structure
 
 ```
 default.project.json                          Rojo map (folders, remotes)
 src/
   ReplicatedStorage/Modules/
-    Configuration/     GameConfig, RarityConfig, StreamerDatabase, WorldConfig
-    Shared/            NumberFormatter (K/M/B/T only)
+    Configuration/     GameConfig, RarityConfig, StreamerDatabase, WorldConfig, DonationConfig
+    Shared/            NumberFormatter (Bucks K/M/B/T; FormatRobux uncapped)
   ServerScriptService/                         (mapped as ServerScriptService.Server)
     Bootstrap.server.lua                       validates config, wires + starts services
     Core/              Services, Runtime, StateSync, ExpansionHooks
@@ -267,14 +305,19 @@ src/
     Inventory/         InventoryService, CollectionService
     Player/            SessionTracker, PlayerManager
     Networking/        NetworkService
+    Donation/          RobuxDonationSystem, DonationLeaderboard, GlobalDonationStandSystem
   StarterPlayer/StarterPlayerScripts/
     ClientBootstrap.client.lua
-    Client/Controllers/  StateController, SpinController
+    Client/Controllers/  StateController, SpinController, DonationController, DonationLeaderboardController
     Client/UI/           HUDController, InventoryController
 ```
 
 Remotes (`ClientReady`, `SpinRequest`, `SpinResult`, `InitialState`,
-`StateUpdate`) are defined in `default.project.json`. Balancing is centralized:
-tuning the game means editing `Configuration/`, never hunting through services.
+`StateUpdate`, and the donation set: `RequestDonationPrompt`,
+`DonationPromptResult`, `RequestGlobalDonorLeaderboard`,
+`GlobalDonorLeaderboardUpdated`, `DonationNotification`, `DonationStandEffect`,
+`OpenDonationPanel`) are defined in `default.project.json`. Balancing is
+centralized: tuning the game means editing `Configuration/`, never hunting
+through services.
 
 See `README.md` for how to sync this into Roblox Studio.

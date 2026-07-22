@@ -10,6 +10,7 @@ local Economy = Server.Economy
 local Inventory = Server.Inventory
 local PlayerFolder = Server.Player
 local Networking = Server.Networking
+local Donation = Server.Donation
 
 local Services = require(Core.Services)
 local Logger = require(Utilities.Logger)
@@ -38,6 +39,9 @@ Services.CollectionService = require(Inventory.CollectionService)
 Services.SessionTracker = require(PlayerFolder.SessionTracker)
 Services.PlayerManager = require(PlayerFolder.PlayerManager)
 Services.NetworkService = require(Networking.NetworkService)
+Services.DonationLeaderboard = require(Donation.DonationLeaderboard)
+Services.RobuxDonationSystem = require(Donation.RobuxDonationSystem)
+Services.GlobalDonationStandSystem = require(Donation.GlobalDonationStandSystem)
 
 -- 3) Initialize (they wire dependencies via the registry, at call time).
 for _, name in ipairs({
@@ -49,6 +53,9 @@ for _, name in ipairs({
 	"SessionTracker",
 	"NetworkService",
 	"PlayerManager",
+	"DonationLeaderboard",
+	"RobuxDonationSystem",
+	"GlobalDonationStandSystem",
 }) do
 	local service = Services[name]
 	if service.Init then
@@ -59,5 +66,12 @@ end
 -- 4) Go live: hook remotes, then start the player lifecycle + loops.
 Services.NetworkService.Start()
 Services.PlayerManager.Start()
+
+-- 5) Donation subsystem. The stand is built first so the leaderboard's refresh loop
+-- always has a board to render into; the receipt/prompt handler and board loop start
+-- after it.
+Services.GlobalDonationStandSystem.Start()
+Services.DonationLeaderboard.Start()
+Services.RobuxDonationSystem.Start()
 
 Logger.Info("Boot", "RollAStream server started")

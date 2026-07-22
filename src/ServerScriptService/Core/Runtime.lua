@@ -16,6 +16,10 @@ function Runtime.Create(userId: number)
 		spinActive = false, -- a roll is mid-flight
 		lastSpinAt = 0, -- os.clock() of last accepted spin
 
+		donationPending = 0, -- os.clock() when a donation prompt was opened (0 = none)
+		lastDonationPromptAt = 0, -- os.clock() of last accepted donation prompt (cooldown)
+		lastLeaderboardRequestAt = 0, -- os.clock() of last accepted board request (rate limit)
+
 		session = nil, -- populated by SessionTracker
 
 		connections = {}, -- RBXScriptConnections to disconnect on leave

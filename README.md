@@ -4,10 +4,13 @@ A Roblox gacha-idle game: spin to collect streamer creators, earn passive
 income based on rarity, manage a side-bar inventory. See
 [`MEGA_DESIGN.md`](./MEGA_DESIGN.md) for the full design doc and roadmap.
 
-**Built so far:** Phase 1 (core spin/income/inventory loop) and Phase 2 (a
+**Built so far:** Phase 1 (core spin/income/inventory loop), Phase 2 (a
 production-grade, server-authoritative backend rebuild: profiles, saving,
-sessions, economy, validation, and content-ready expansion hooks). Gameplay
-feels the same as Phase 1; the systems underneath are now scalable.
+sessions, economy, validation, and content-ready expansion hooks), and Phase 3
+(one shared Global Donation Stand: donate real Robux via secure, idempotent
+`ProcessReceipt` crediting and climb a global all-time Top 100 Donors board
+backed by an OrderedDataStore). Donations are a support path only: they grant
+zero Streamer Bucks and never touch the capped Bucks economy.
 
 ## Project layout
 
@@ -20,8 +23,9 @@ src/
       RarityConfig.lua      7 tiers: color, income scaling, sort priority, reveal presets
       StreamerDatabase.lua  25 streamers + derived rarity/income/weight + future fields
       WorldConfig.lua       Valid Collections / Banners / Regions
+      DonationConfig.lua    Robux amounts, product IDs, board/cooldown/UI tuning, copy
     Shared/
-      NumberFormatter.lua   K/M/B/T formatting (intentionally stops at T)
+      NumberFormatter.lua   K/M/B/T for Bucks (stops at T); FormatRobux is uncapped (Qa+)
   ServerScriptService/                    (mapped into ServerScriptService as "Server")
     Bootstrap.server.lua    Validates config, wires services, starts the game
     Core/         Services (registry), Runtime, StateSync, ExpansionHooks
@@ -31,15 +35,23 @@ src/
     Inventory/    InventoryService (stacking + sorting), CollectionService
     Player/       SessionTracker, PlayerManager (lifecycle + loops)
     Networking/   NetworkService (authoritative remotes, validation, deltas)
+    Donation/     RobuxDonationSystem (prompts + ProcessReceipt + credit),
+                  DonationLeaderboard (OrderedDataStore + Top 100 cache),
+                  GlobalDonationStandSystem (the one world stand + board)
   StarterPlayer/StarterPlayerScripts/
     ClientBootstrap.client.lua            Entry point; wires remotes -> controllers
-    Client/Controllers/  StateController, SpinController
+    Client/Controllers/  StateController, SpinController,
+                         DonationController (panel + Donate button),
+                         DonationLeaderboardController (Top 100 panel)
     Client/UI/           HUDController, InventoryController
 ```
 
 `ReplicatedStorage/Remotes` (`ClientReady`, `SpinRequest`, `SpinResult`,
-`InitialState`, `StateUpdate`) is defined directly in `default.project.json`.
-Rojo creates those `RemoteEvent` instances on sync.
+`InitialState`, `StateUpdate`, plus the donation set `RequestDonationPrompt`,
+`DonationPromptResult`, `RequestGlobalDonorLeaderboard`,
+`GlobalDonorLeaderboardUpdated`, `DonationNotification`, `DonationStandEffect`,
+`OpenDonationPanel`) is defined directly in `default.project.json`. Rojo creates
+those `RemoteEvent` instances on sync.
 
 ## Architecture at a glance
 

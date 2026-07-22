@@ -13,7 +13,14 @@
         "SpinRequest": { "$className": "RemoteEvent" },
         "SpinResult": { "$className": "RemoteEvent" },
         "InitialState": { "$className": "RemoteEvent" },
-        "StateUpdate": { "$className": "RemoteEvent" }
+        "StateUpdate": { "$className": "RemoteEvent" },
+        "RequestDonationPrompt": { "$className": "RemoteEvent" },
+        "DonationPromptResult": { "$className": "RemoteEvent" },
+        "RequestGlobalDonorLeaderboard": { "$className": "RemoteEvent" },
+        "GlobalDonorLeaderboardUpdated": { "$className": "RemoteEvent" },
+        "DonationNotification": { "$className": "RemoteEvent" },
+        "DonationStandEffect": { "$className": "RemoteEvent" },
+        "OpenDonationPanel": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {
