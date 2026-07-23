@@ -15,14 +15,21 @@ tracks the full roadmap; the **Status** column says what's actually built.
 | **Phase 1: Core Loop** | Built | Spin button, weighted gacha roll, 25-streamer roster, passive income, side-bar inventory |
 | **Phase 2: Backend Foundation** | Built | Production-grade rebuild: profiles, saving, sessions, inventory, collection, economy, RNG, config, server authority, networking, validation, lifecycle, expansion hooks |
 | Phase 3: Progression systems | Not started | Placeholder, spec TBD |
-| Phase 4: Presentation / content | Not started | Placeholder: reveal cinematics, banners, regions, cosmetics |
+| **Phase 4: Two-Tier Presentation** | Built | Presentation finalization: server-attached PresentationType, instant Standard reveal (Common-Legendary), cinematic Flagship reveal (Mythic/Secret), startup presentation validation, roster locked to 20-30 |
 
 Phase 2 was a **backend-only** rebuild. A player barely notices a gameplay
 difference versus Phase 1, but the systems underneath are now scalable,
-server-authoritative, and ready for content without rewrites. Do not build
-Phase 3+ gameplay (Garage, Lucky Spins, Gamepasses, Codes, Trading, Quests,
-Cinematics, Events) until a phase-specific prompt arrives; only the backend
-*seams* those systems will use exist today (see Expansion Hooks below).
+server-authoritative, and ready for content without rewrites.
+
+Phase 4 is presentation-only: it splits the reveal path into two tiers by rarity
+without touching odds or income. The scrapped legacy Phase 4 draft (roster
+expansion to 100-150, Regions, Banner gacha, Collections rewards, pity) is
+explicitly out of scope; the roster stays a tight 20-30 and rolls stay pure
+inverse-popularity RNG.
+
+Do not build the remaining Phase 3+ gameplay (Garage, Lucky Spins, Gamepasses,
+Codes, Trading, Quests, Events) until a phase-specific prompt arrives; only the
+backend *seams* those systems will use exist today (see Expansion Hooks below).
 
 ---
 
@@ -136,9 +143,39 @@ startup:
 - **Banners** (at least one, all in `Standard`)
 - **Region** (`NA` / `EU` / `SA` / `Global`)
 - **Featured** flag (all `false` today)
-- **Presentation placeholders** (data-only, no visuals yet):
+- **Presentation placeholders** (asset ids, placeholder `rbxassetid://0` in dev):
   `reveal_animation_id`, `reveal_sound`, `banner_asset`, `card_background`,
   `particle_preset`, `voice_line`, `intro_camera_preset`
+- **`presentation_type`** (derived, Phase 4): `Flagship` for Mythic/Secret,
+  `Standard` for everything else. Never hand-authored; see below.
+
+---
+
+## Two-Tier Presentation System (Phase 4)
+
+Presentation is split into exactly two reveal paths, chosen strictly by rarity.
+The split changes only how a pull is shown, never what is rolled or what it
+earns. `PresentationConfig` owns the routing (rarity colors stay in
+`RarityConfig` so they never drift).
+
+- **Flagship (Mythic, Secret only).** A bounded, input-locked cinematic:
+  per-streamer banner, animated sequence, signature sound, and a particle burst.
+  It has a hard `MaxSequenceSeconds` timeout, always cleans up its temporary
+  instances, always unlocks input (pcall-guarded), and falls back to the Standard
+  reveal if its required asset fields are absent. It can never soft-lock the UI.
+- **Standard (Common through Legendary).** An instant static pop-in: shared
+  rarity color plus a shared rarity chime, with zero winner-card motion (no
+  tween, bounce, flip, fade, or `task.wait` for drama) and no per-streamer
+  assets. Speed and clarity are the point.
+
+Flow: the server rolls (pure inverse-popularity RNG, unchanged), grants, and
+attaches an authoritative `PresentationType` (re-derived from rarity as a safety
+net) plus, for Flagship, a read-only `Assets` subset to `SpinResult`. The client
+`RevealController` routes on that string alone: Standard results can never reach
+the Flagship handler, and the client can never force a Flagship reveal for a
+Standard pull. Startup validation enforces roster size (20-30), presentation /
+rarity consistency, and Flagship required fields; fatal issues disable the gacha
+rather than roll on unsafe content.
 
 ---
 

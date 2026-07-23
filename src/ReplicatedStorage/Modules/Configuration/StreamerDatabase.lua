@@ -19,6 +19,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Configuration = ReplicatedStorage.Modules.Configuration
 local RarityConfig = require(Configuration.RarityConfig)
+local PresentationConfig = require(Configuration.PresentationConfig)
 
 -- Placeholder presentation defaults. Non-empty values would reference real
 -- assets in a later phase; empty strings mean "use the rarity/default preset".
@@ -69,19 +70,57 @@ local RawRoster = {
 	{ name = "Slime", popularity_score = 18, region = "Global" },
 }
 
+-- Default Flagship particle preset per tier (registered in PresentationConfig).
+-- Flagship streamers with no authored particle_preset inherit their tier preset.
+local FLAGSHIP_PARTICLE_BY_TIER = {
+	Mythic = "MythicBurst",
+	Secret = "SecretStorm",
+}
+
+-- Fill Flagship presentation placeholders. Real asset ids drop in during a later
+-- content pass; rbxassetid://0 is a valid dev placeholder that the client treats
+-- as "unset" and falls back from (never a soft-lock). Standard streamers keep the
+-- empty presentation table: they use the shared rarity color + chime only.
+local function applyFlagshipDefaults(pres, rarityTier: string)
+	if pres.reveal_animation_id == "" then
+		pres.reveal_animation_id = "rbxassetid://0"
+	end
+	if pres.reveal_sound == "" then
+		pres.reveal_sound = "rbxassetid://0"
+	end
+	if pres.banner_asset == "" then
+		pres.banner_asset = "rbxassetid://0"
+	end
+	if pres.particle_preset == "" then
+		pres.particle_preset = FLAGSHIP_PARTICLE_BY_TIER[rarityTier] or PresentationConfig.DefaultParticlePreset
+	end
+	return pres
+end
+
 local StreamerDatabase = {}
 StreamerDatabase.All = {} -- array, database order
 StreamerDatabase.ById = {} -- [id] -> streamer
 
 for index, entry in ipairs(RawRoster) do
 	local popularity = entry.popularity_score
+	local rarityTier = RarityConfig.GetTierForPopularity(popularity)
+	local pres = presentation(entry.presentation)
+
+	-- PresentationType is derived strictly from rarity (Mythic/Secret -> Flagship,
+	-- everything else -> Standard). It is never hand-authored per streamer.
+	local presentationType = PresentationConfig.GetPresentationType(rarityTier)
+	if presentationType == "Flagship" then
+		applyFlagshipDefaults(pres, rarityTier)
+	end
+
 	local streamer = {
 		id = index,
 		name = entry.name,
 		popularity_score = popularity,
 
 		-- Derived (never hand-edit these):
-		rarity_tier = RarityConfig.GetTierForPopularity(popularity),
+		rarity_tier = rarityTier,
+		presentation_type = presentationType, -- "Flagship" | "Standard"
 		base_income = popularity, -- see income model note above
 		weight = RarityConfig.GetWeight(popularity),
 
@@ -92,7 +131,7 @@ for index, entry in ipairs(RawRoster) do
 		is_featured = false, -- Featured Streamer flag (future)
 
 		-- Presentation placeholders (data only; no visuals implemented yet):
-		presentation = presentation(entry.presentation),
+		presentation = pres,
 	}
 	StreamerDatabase.All[index] = streamer
 	StreamerDatabase.ById[streamer.id] = streamer

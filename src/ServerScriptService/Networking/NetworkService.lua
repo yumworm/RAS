@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Configuration = ReplicatedStorage.Modules.Configuration
 local GameConfig = require(Configuration.GameConfig)
 local StreamerDatabase = require(Configuration.StreamerDatabase)
+local PresentationConfig = require(Configuration.PresentationConfig)
 
 local Server = script.Parent.Parent
 local Runtime = require(Server.Core.Runtime)
@@ -27,8 +28,20 @@ local NetworkService = {}
 local Services: any
 local rng = RNG.new()
 
+-- Gacha gate. Set by Bootstrap from startup validation: when content is unsafe
+-- (e.g. roster over cap) spins are refused rather than rolled. Defaults to true
+-- so a caller that never sets it still works.
+local spinEnabled = true
+-- One-time guard so a DB presentation_type mismatch logs once, not per spin.
+local loggedPresentationMismatch = false
+
 function NetworkService.Init(services)
 	Services = services
+end
+
+-- Enable or disable accepting spin requests. Called once at boot.
+function NetworkService.SetSpinEnabled(enabled: boolean)
+	spinEnabled = enabled ~= false
 end
 
 --------------------------------------------------------------------------------
@@ -93,11 +106,53 @@ local function buildRollModifiers(userId: number)
 	return modifiers
 end
 
+-- Resolve the authoritative PresentationType for a winner. The DB value is the
+-- source of truth, but we re-derive from rarity as a safety net so a hand-edited
+-- mismatch can never send the client down the wrong reveal path. Logs once.
+local function resolvePresentationType(winner): string
+	local derived = PresentationConfig.GetPresentationType(winner.rarity_tier)
+	if winner.presentation_type ~= derived then
+		if not loggedPresentationMismatch then
+			loggedPresentationMismatch = true
+			Logger.Warn(
+				"Presentation",
+				string.format(
+					"%s presentation_type %s != rarity-derived %s; using derived",
+					tostring(winner.name),
+					tostring(winner.presentation_type),
+					derived
+				)
+			)
+		end
+		return derived
+	end
+	return derived
+end
+
+-- Flagship asset subset echoed to the client (read-only display instructions).
+-- Nil for Standard, which uses the shared rarity template + chime only.
+local function buildFlagshipAssets(winner, presentationType: string)
+	if presentationType ~= "Flagship" then
+		return nil
+	end
+	local pres = winner.presentation or {}
+	return {
+		RevealAnimId = pres.reveal_animation_id,
+		RevealSoundId = pres.reveal_sound,
+		ParticlePreset = PresentationConfig.ResolveParticlePreset(pres.particle_preset),
+		CustomBannerId = pres.banner_asset,
+	}
+end
+
 local function handleSpinRequest(player: Player)
 	local userId = player.UserId
 	local runtime = Runtime.Get(userId)
 	local profile = Services.ProfileService.Get(userId)
 
+	-- Refuse to roll when the gacha is gated off by failed startup validation.
+	if not spinEnabled then
+		return
+	end
 	-- Validation: player must be fully initialized with a loaded profile.
 	if not runtime or not profile or not runtime.initialized then
 		return -- ignore, don't crash
@@ -119,14 +174,25 @@ local function handleSpinRequest(player: Player)
 		-- Server decides the winner. The client never influences this.
 		local winner = rng:RollStreamer(StreamerDatabase.All, buildRollModifiers(userId))
 
-		Services.InventoryService.AddStreamer(userId, winner.id)
+		local entry, isNew = Services.InventoryService.AddStreamer(userId, winner.id)
 		profile.stats.totalSpins += 1
 		Services.SessionTracker.OnSpin(userId)
 
-		-- Tell the client which streamer to reveal (authoritative id + rarity).
+		-- PresentationType (and, for Flagship, the asset refs) are decided here on
+		-- the server. The client only routes visuals from them; it can never pick
+		-- its own tier or force a Flagship reveal for a Standard pull.
+		local presentationType = resolvePresentationType(winner)
+
+		-- Tell the client which streamer to reveal (authoritative id + rarity +
+		-- presentation instructions). Inventory/income truth still flows via state
+		-- sync below; these fields are display-only.
 		Remotes.SpinResult:FireClient(player, {
 			streamerId = winner.id,
 			rarity = winner.rarity_tier,
+			presentationType = presentationType,
+			isNew = isNew == true,
+			duplicateCount = entry and entry.amount or 1,
+			assets = buildFlagshipAssets(winner, presentationType),
 		})
 		-- Ship the resulting state changes (inventory/income/collection/bestPull).
 		NetworkService.FlushState(userId)

@@ -16,14 +16,25 @@ local Logger = require(Utilities.Logger)
 local Validation = require(Utilities.Validation)
 
 -- 1) Validate config + streamer database before anything can touch it.
-local errors = Validation.ValidateAll()
-if #errors > 0 then
+-- `errors` are fatal (they gate the gacha below); `warnings` are logged only.
+local errors, warnings = Validation.ValidateAll()
+local gachaSafe = #errors == 0
+
+if #warnings > 0 then
+	Logger.Warn("Config", string.format("Startup validation raised %d warning(s):", #warnings))
+	for _, message in ipairs(warnings) do
+		Logger.Warn("Config", "  - " .. message)
+	end
+end
+
+if not gachaSafe then
 	Logger.Error("Config", string.format("Startup validation found %d issue(s):", #errors))
 	for _, message in ipairs(errors) do
 		Logger.Error("Config", "  - " .. message)
 	end
-	-- Fail safe: the game still boots (services fall back to safe defaults), but
-	-- the problems are logged loudly for developers.
+	-- Fail safe: the game still boots (services fall back to safe defaults) but the
+	-- gacha refuses to roll on unsafe content until the issues are fixed.
+	Logger.Error("Config", "Gacha spins are DISABLED until validation passes")
 else
 	Logger.Info("Config", "Startup validation passed")
 end
@@ -56,7 +67,9 @@ for _, name in ipairs({
 	end
 end
 
--- 4) Go live: hook remotes, then start the player lifecycle + loops.
+-- 4) Go live: hook remotes, then start the player lifecycle + loops. Gate the
+-- gacha on validation so unsafe content never rolls.
+Services.NetworkService.SetSpinEnabled(gachaSafe)
 Services.NetworkService.Start()
 Services.PlayerManager.Start()
 

@@ -4,10 +4,12 @@ A Roblox gacha-idle game: spin to collect streamer creators, earn passive
 income based on rarity, manage a side-bar inventory. See
 [`MEGA_DESIGN.md`](./MEGA_DESIGN.md) for the full design doc and roadmap.
 
-**Built so far:** Phase 1 (core spin/income/inventory loop) and Phase 2 (a
+**Built so far:** Phase 1 (core spin/income/inventory loop), Phase 2 (a
 production-grade, server-authoritative backend rebuild: profiles, saving,
-sessions, economy, validation, and content-ready expansion hooks). Gameplay
-feels the same as Phase 1; the systems underneath are now scalable.
+sessions, economy, validation, and content-ready expansion hooks), and Phase 4
+(the Two-Tier Presentation System: instant Standard reveals for Common through
+Legendary, cinematic Flagship reveals for Mythic and Secret). Gameplay and odds
+are unchanged; presentation never touches income.
 
 ## Project layout
 
@@ -18,10 +20,12 @@ src/
     Configuration/
       GameConfig.lua        All balancing values (autosave, cooldown, $10T cap, multipliers)
       RarityConfig.lua      7 tiers: color, income scaling, sort priority, reveal presets
-      StreamerDatabase.lua  25 streamers + derived rarity/income/weight + future fields
+      PresentationConfig.lua  Two-Tier reveal routing: Flagship vs Standard, chimes, timeouts
+      StreamerDatabase.lua  25 streamers + derived rarity/income/weight/presentation_type
       WorldConfig.lua       Valid Collections / Banners / Regions
     Shared/
       NumberFormatter.lua   K/M/B/T formatting (intentionally stops at T)
+  Assets/Presentation/                     Folder tree for reveal assets (particles, banners, audio)
   ServerScriptService/                    (mapped into ServerScriptService as "Server")
     Bootstrap.server.lua    Validates config, wires services, starts the game
     Core/         Services (registry), Runtime, StateSync, ExpansionHooks
@@ -33,7 +37,8 @@ src/
     Networking/   NetworkService (authoritative remotes, validation, deltas)
   StarterPlayer/StarterPlayerScripts/
     ClientBootstrap.client.lua            Entry point; wires remotes -> controllers
-    Client/Controllers/  StateController, SpinController
+    Client/Controllers/  StateController, SpinController, RevealController,
+                         StandardRevealHandler, FlagshipRevealHandler
     Client/UI/           HUDController, InventoryController
 ```
 
@@ -53,6 +58,12 @@ Rojo creates those `RemoteEvent` instances on sync.
   save on leave/shutdown, never overwrite on a failed load, retry with backoff.
 - **Scales to content.** Empty expansion hooks (`ExpansionHooks`) let future
   systems plug into rolls, income, and events without touching core code.
+- **Two-Tier presentation.** The server attaches a `PresentationType` to each
+  spin result; the client only routes visuals from it. Common through Legendary
+  get an instant static reveal (shared rarity color + chime, zero motion). Mythic
+  and Secret get a bounded, input-locked cinematic that always cleans up and
+  unlocks, and falls back to the instant reveal if its assets are missing.
+  Presentation never feeds odds or income.
 
 ## Running it in Roblox Studio
 
