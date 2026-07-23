@@ -6,6 +6,9 @@
 --
 -- Only persistent data lives here. Runtime-only values (current session, cached
 -- income-per-second, connections) live in Core/Runtime instead.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameSettingsConfig = require(ReplicatedStorage.Modules.Configuration.GameSettingsConfig)
+
 local ProfileTemplate = {}
 
 ProfileTemplate.CURRENT_VERSION = 2
@@ -56,12 +59,16 @@ function ProfileTemplate.Default()
 			prestige = false,
 		},
 
-		-- Player-controlled settings.
-		settings = {
-			musicEnabled = true,
-			sfxEnabled = true,
-			reducedMotion = false,
-		},
+		-- Player-controlled settings. Audio + FTUE defaults come from
+		-- GameSettingsConfig so there is one source of truth for them; reducedMotion
+		-- is a pre-existing accessibility flag kept here. All booleans -- the
+		-- Reconcile on load repairs missing/wrong-typed keys back to these defaults
+		-- without ever touching economy or inventory.
+		settings = (function()
+			local settings = GameSettingsConfig.DefaultSettings()
+			settings.reducedMotion = false
+			return settings
+		end)(),
 
 		-- Open-ended bag for future one-off flags so we never need a migration
 		-- just to remember a boolean.

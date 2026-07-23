@@ -5,36 +5,20 @@
 -- banner, and no per-streamer voice line. Only a shared rarity color and a shared
 -- rarity chime. Speed and clarity are the feature here.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SoundService = game:GetService("SoundService")
 
 local Configuration = ReplicatedStorage.Modules.Configuration
 local RarityConfig = require(Configuration.RarityConfig)
 local PresentationConfig = require(Configuration.PresentationConfig)
 local StreamerDatabase = require(Configuration.StreamerDatabase)
 
+local AudioController = require(script.Parent.AudioController)
+
 local StandardRevealHandler = {}
 
--- Fire-and-forget 2D sound. Placeholder / empty ids are simply skipped so a dev
--- roster with no real audio stays silent instead of erroring.
+-- The shared rarity chime, routed through the SFX bus so the Master/SFX toggles
+-- apply. AudioController skips placeholder/empty ids and owns instance cleanup.
 local function playChime(rarityName: string)
-	local id = PresentationConfig.RarityChimes[rarityName]
-	if not PresentationConfig.IsAssetSet(id) then
-		return
-	end
-	local sound = Instance.new("Sound")
-	sound.SoundId = id
-	sound.Volume = 0.5
-	sound.Parent = SoundService
-	sound.Ended:Once(function()
-		sound:Destroy()
-	end)
-	sound:Play()
-	-- Safety net cleanup in case Ended never fires (bad/instant id).
-	task.delay(5, function()
-		if sound and sound.Parent then
-			sound:Destroy()
-		end
-	end)
+	AudioController.PlaySFX(PresentationConfig.RarityChimes[rarityName], { Volume = 0.5 })
 end
 
 -- view: the shared reveal surface owned by SpinController (see its Init).

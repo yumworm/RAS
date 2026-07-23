@@ -10,6 +10,9 @@ local playerGui = player:WaitForChild("PlayerGui")
 local Client = script.Parent.Client
 local StateController = require(Client.Controllers.StateController)
 local SpinController = require(Client.Controllers.SpinController)
+local AudioController = require(Client.Controllers.AudioController)
+local SettingsController = require(Client.Controllers.SettingsController)
+local FTUEController = require(Client.Controllers.FTUEController)
 local HUDController = require(Client.UI.HUDController)
 local InventoryController = require(Client.UI.InventoryController)
 
@@ -24,7 +27,13 @@ Remotes.StateUpdate.OnClientEvent:Connect(function(payload)
 end)
 Remotes.SpinResult.OnClientEvent:Connect(function(payload)
 	SpinController.OnResult(payload)
+	-- A server-confirmed spin also ends the FTUE first-spin pulse.
+	FTUEController.OnSpinResult(payload)
 end)
+
+-- Start the audio bus before anything can play a sound, so early SFX / BGM route
+-- through it and honour the Master/Music/SFX settings once they arrive.
+AudioController.Init()
 
 -- Build the HUD.
 local screenGui = Instance.new("ScreenGui")
@@ -36,6 +45,8 @@ screenGui.Parent = playerGui
 HUDController.Init(screenGui, StateController)
 InventoryController.Init(screenGui, StateController)
 SpinController.Init(screenGui, StateController)
+SettingsController.Init(screenGui, StateController)
+FTUEController.Init(screenGui, StateController, SpinController.GetSpinButton())
 
 -- Tell the server we're ready to receive state. This closes the race where the
 -- server's init-time snapshot could fire before our handlers were connected.

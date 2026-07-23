@@ -15,6 +15,7 @@ function Runtime.Create(userId: number)
 
 		spinActive = false, -- a roll is mid-flight
 		lastSpinAt = 0, -- os.clock() of last accepted spin
+		lastSettingsAt = 0, -- os.clock() of last accepted settings update (rate limit)
 
 		session = nil, -- populated by SessionTracker
 

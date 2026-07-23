@@ -28,10 +28,13 @@ local function build(parent: ScreenGui)
 	currencyLabel.Name = "CurrencyLabel"
 	currencyLabel.BackgroundTransparency = 1
 	currencyLabel.Position = UDim2.fromOffset(20, 0)
-	currencyLabel.Size = UDim2.fromOffset(360, 34)
+	-- Width is viewport-relative and leaves room for the top-right settings gear so
+	-- long amounts never run under it on narrow phones.
+	currencyLabel.Size = UDim2.new(1, -84, 0, 34)
 	currencyLabel.Font = Enum.Font.GothamBold
 	currencyLabel.TextSize = 22
 	currencyLabel.TextXAlignment = Enum.TextXAlignment.Left
+	currencyLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	currencyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	currencyLabel.Text = GameConfig.CurrencyName .. ": 0"
 	currencyLabel.Parent = topBar
@@ -40,7 +43,7 @@ local function build(parent: ScreenGui)
 	incomeLabel.Name = "IncomeLabel"
 	incomeLabel.BackgroundTransparency = 1
 	incomeLabel.Position = UDim2.fromOffset(20, 32)
-	incomeLabel.Size = UDim2.fromOffset(360, 20)
+	incomeLabel.Size = UDim2.new(1, -84, 0, 20)
 	incomeLabel.Font = Enum.Font.Gotham
 	incomeLabel.TextSize = 14
 	incomeLabel.TextXAlignment = Enum.TextXAlignment.Left

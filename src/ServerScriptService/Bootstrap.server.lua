@@ -10,6 +10,7 @@ local Economy = Server.Economy
 local Inventory = Server.Inventory
 local PlayerFolder = Server.Player
 local Networking = Server.Networking
+local Systems = Server.Systems
 
 local Services = require(Core.Services)
 local Logger = require(Utilities.Logger)
@@ -49,6 +50,7 @@ Services.CollectionService = require(Inventory.CollectionService)
 Services.SessionTracker = require(PlayerFolder.SessionTracker)
 Services.PlayerManager = require(PlayerFolder.PlayerManager)
 Services.NetworkService = require(Networking.NetworkService)
+Services.AnalyticsMonitorSystem = require(Systems.Analytics.AnalyticsMonitorSystem)
 
 -- 3) Initialize (they wire dependencies via the registry, at call time).
 for _, name in ipairs({
@@ -60,6 +62,7 @@ for _, name in ipairs({
 	"SessionTracker",
 	"NetworkService",
 	"PlayerManager",
+	"AnalyticsMonitorSystem",
 }) do
 	local service = Services[name]
 	if service.Init then
@@ -72,5 +75,7 @@ end
 Services.NetworkService.SetSpinEnabled(gachaSafe)
 Services.NetworkService.Start()
 Services.PlayerManager.Start()
+-- Developer-only observability (economy soft-cap + donation funnel + snapshots).
+Services.AnalyticsMonitorSystem.Start()
 
 Logger.Info("Boot", "RollAStream server started")

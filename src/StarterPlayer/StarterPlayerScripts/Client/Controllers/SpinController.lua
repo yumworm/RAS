@@ -110,6 +110,10 @@ local function build(parent: ScreenGui)
 	local btnCorner = Instance.new("UICorner")
 	btnCorner.CornerRadius = UDim.new(0, 12)
 	btnCorner.Parent = spinButton
+	-- Keep the primary action a comfortable touch target on every device.
+	local btnSize = Instance.new("UISizeConstraint")
+	btnSize.MinSize = Vector2.new(160, 48)
+	btnSize.Parent = spinButton
 end
 
 --------------------------------------------------------------------------------
@@ -212,6 +216,12 @@ local function onClick()
 	setInputLocked(false)
 	spinButton.Text = "SPIN"
 	spinning = false
+end
+
+-- Exposed so the FTUE controller can attach its first-spin pulse to the real
+-- button instance (rather than searching the GUI tree for it).
+function SpinController.GetSpinButton(): TextButton
+	return spinButton
 end
 
 function SpinController.Init(parent: ScreenGui, stateController)

@@ -28,7 +28,8 @@
         "SpinRequest": { "$className": "RemoteEvent" },
         "SpinResult": { "$className": "RemoteEvent" },
         "InitialState": { "$className": "RemoteEvent" },
-        "StateUpdate": { "$className": "RemoteEvent" }
+        "StateUpdate": { "$className": "RemoteEvent" },
+        "RequestUpdateSettings": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {
