@@ -1,0 +1,62 @@
+--!strict
+-- StandardRevealHandler: the reveal path for Common through Legendary. It is the
+-- deliberate opposite of a cinematic: the winning card snaps to its final state
+-- instantly, with zero scale/bounce/flip/fade, no task.wait for drama, no custom
+-- banner, and no per-streamer voice line. Only a shared rarity color and a shared
+-- rarity chime. Speed and clarity are the feature here.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+
+local Configuration = ReplicatedStorage.Modules.Configuration
+local RarityConfig = require(Configuration.RarityConfig)
+local PresentationConfig = require(Configuration.PresentationConfig)
+local StreamerDatabase = require(Configuration.StreamerDatabase)
+
+local StandardRevealHandler = {}
+
+-- Fire-and-forget 2D sound. Placeholder / empty ids are simply skipped so a dev
+-- roster with no real audio stays silent instead of erroring.
+local function playChime(rarityName: string)
+	local id = PresentationConfig.RarityChimes[rarityName]
+	if not PresentationConfig.IsAssetSet(id) then
+		return
+	end
+	local sound = Instance.new("Sound")
+	sound.SoundId = id
+	sound.Volume = 0.5
+	sound.Parent = SoundService
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	sound:Play()
+	-- Safety net cleanup in case Ended never fires (bad/instant id).
+	task.delay(5, function()
+		if sound and sound.Parent then
+			sound:Destroy()
+		end
+	end)
+end
+
+-- view: the shared reveal surface owned by SpinController (see its Init).
+-- result: the authoritative server payload (streamerId, rarity, ...).
+function StandardRevealHandler.Reveal(view, result)
+	local streamer = StreamerDatabase.Get(result.streamerId)
+	local rarity = RarityConfig.Get(result.rarity)
+
+	-- Kill any anticipation leftovers so the winner card is static, not mid-motion.
+	view.stopRainbow()
+	view.cancelWinnerTweens()
+
+	-- Snap the card to its final state. No TweenService anywhere on this path.
+	view.card.Size = view.defaultCardSize
+	view.card.BackgroundColor3 = rarity.Color
+	view.name.Text = streamer and streamer.name or "Unknown"
+	view.rarity.Text = rarity.DisplayName
+
+	-- No glow flourish on Standard; make sure any previous glow is hidden.
+	view.glow.BackgroundTransparency = 1
+
+	playChime(result.rarity)
+end
+
+return StandardRevealHandler

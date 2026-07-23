@@ -1,18 +1,22 @@
 --!strict
 -- SpinController: the central spin button + reel. It only *requests* a spin; the
 -- server decides the winner and sends it back via SpinResult. The client's job is
--- purely cosmetic -- cycle a reel, then reveal the server's result with rarity
--- flair (scale pop, glow, particle burst, rainbow for Secret).
+-- purely cosmetic: cycle a reel (shared pre-result anticipation), then hand the
+-- server's result to the RevealController, which routes it to the correct tier.
+--
+-- Phase 4 split: SpinController no longer decides how the winner looks. The reel
+-- is anticipation only; the winning card's presentation is owned by the Standard
+-- (instant) or Flagship (cinematic) handler, chosen from the server's
+-- PresentationType. This module never animates the winning card itself.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Debris = game:GetService("Debris")
 
 local Configuration = ReplicatedStorage.Modules.Configuration
 local RarityConfig = require(Configuration.RarityConfig)
 local StreamerDatabase = require(Configuration.StreamerDatabase)
 local GameConfig = require(Configuration.GameConfig)
+
+local RevealController = require(script.Parent.RevealController)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local SpinRequest = Remotes:WaitForChild("SpinRequest")
@@ -26,6 +30,8 @@ local reelCard, reelName, reelRarity, glowFrame, spinButton
 local spinning = false
 local pendingResult = nil
 local rainbowConnection = nil
+
+local DEFAULT_CARD_SIZE = UDim2.fromOffset(280, 160)
 
 --------------------------------------------------------------------------------
 -- Build
@@ -58,7 +64,7 @@ local function build(parent: ScreenGui)
 	reelCard.Name = "ReelCard"
 	reelCard.AnchorPoint = Vector2.new(0.5, 0.5)
 	reelCard.Position = UDim2.new(0.5, 0, 0.4, 0)
-	reelCard.Size = UDim2.fromOffset(280, 160)
+	reelCard.Size = DEFAULT_CARD_SIZE
 	reelCard.BackgroundColor3 = RarityConfig.Get("Common").Color
 	reelCard.BorderSizePixel = 0
 	reelCard.ZIndex = 2
@@ -107,7 +113,7 @@ local function build(parent: ScreenGui)
 end
 
 --------------------------------------------------------------------------------
--- Reel + reveal
+-- Reveal surface (shared by the Standard / Flagship handlers via RevealController)
 --------------------------------------------------------------------------------
 
 local function stopRainbow()
@@ -117,73 +123,41 @@ local function stopRainbow()
 	end
 end
 
+local function setInputLocked(locked: boolean)
+	spinButton.Active = not locked
+	spinButton.AutoButtonColor = not locked
+end
+
+-- Reset the winning card to its resting size. There are no persistent winner
+-- tweens on this path (the reel uses timed color swaps, not tweens), so this is a
+-- cheap safety snap the Standard handler calls before painting the result.
+local function cancelWinnerTweens()
+	reelCard.Size = DEFAULT_CARD_SIZE
+end
+
+local function buildView()
+	return {
+		card = reelCard,
+		name = reelName,
+		rarity = reelRarity,
+		glow = glowFrame,
+		defaultCardSize = DEFAULT_CARD_SIZE,
+		setInputLocked = setInputLocked,
+		stopRainbow = stopRainbow,
+		cancelWinnerTweens = cancelWinnerTweens,
+	}
+end
+
+--------------------------------------------------------------------------------
+-- Reel (pre-result anticipation only)
+--------------------------------------------------------------------------------
+
 local function setReel(streamer)
 	local rarity = RarityConfig.Get(streamer.rarity_tier)
 	reelName.Text = streamer.name
 	reelRarity.Text = rarity.DisplayName
 	stopRainbow()
 	reelCard.BackgroundColor3 = rarity.Color
-end
-
-local function particleBurst(color: Color3, rainbow: boolean)
-	local count = 14
-	for i = 1, count do
-		local p = Instance.new("Frame")
-		p.AnchorPoint = Vector2.new(0.5, 0.5)
-		p.Position = UDim2.fromScale(0.5, 0.5)
-		p.Size = UDim2.fromOffset(8, 8)
-		p.BackgroundColor3 = rainbow and Color3.fromHSV(i / count, 1, 1) or color
-		p.BorderSizePixel = 0
-		p.ZIndex = 4
-		p.Parent = reelCard
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(1, 0)
-		c.Parent = p
-
-		local angle = (i / count) * math.pi * 2
-		local distance = 90 + math.random(0, 30)
-		TweenService
-			:Create(p, TweenInfo.new(0.5 + math.random() * 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Position = UDim2.new(0.5, math.cos(angle) * distance, 0.5, math.sin(angle) * distance),
-				BackgroundTransparency = 1,
-			})
-			:Play()
-		Debris:AddItem(p, 1)
-	end
-end
-
-local function revealFlourish(streamer)
-	local rarity = RarityConfig.Get(streamer.rarity_tier)
-
-	if rarity.IsRainbow then
-		rainbowConnection = RunService.Heartbeat:Connect(function()
-			reelCard.BackgroundColor3 = Color3.fromHSV((os.clock() * 0.5) % 1, 0.85, 1)
-		end)
-		task.delay(1.6, stopRainbow)
-	end
-
-	local pop = TweenService:Create(
-		reelCard,
-		TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Size = UDim2.fromOffset(310, 178) }
-	)
-	pop:Play()
-	pop.Completed:Wait()
-	TweenService:Create(
-		reelCard,
-		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Size = UDim2.fromOffset(280, 160) }
-	):Play()
-
-	glowFrame.BackgroundColor3 = rarity.Color
-	glowFrame.BackgroundTransparency = 0.35
-	TweenService:Create(
-		glowFrame,
-		TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ BackgroundTransparency = 1 }
-	):Play()
-
-	particleBurst(rarity.Color, rarity.IsRainbow == true)
 end
 
 local function runReel(duration: number)
@@ -210,13 +184,14 @@ local function onClick()
 		return
 	end
 	spinning = true
-	spinButton.Active = false
-	spinButton.AutoButtonColor = false
+	setInputLocked(true)
 	spinButton.Text = "..."
 
 	pendingResult = nil
 	SpinRequest:FireServer()
 
+	-- Shared anticipation cycle (Phase 1). This runs BEFORE the result branch; the
+	-- winner's own presentation is decided by tier, not here.
 	runReel(GameConfig.SpinAnimationDuration)
 
 	-- Wait for the server's authoritative result (bounded).
@@ -229,15 +204,12 @@ local function onClick()
 	local result = pendingResult
 	pendingResult = nil
 	if result then
-		local streamer = StreamerDatabase.Get(result.streamerId)
-		if streamer then
-			setReel(streamer)
-			revealFlourish(streamer)
-		end
+		-- Route by server-provided PresentationType. Standard snaps static;
+		-- Flagship takes over cinematically (and manages its own input lock).
+		RevealController.Reveal(result)
 	end
 
-	spinButton.Active = true
-	spinButton.AutoButtonColor = true
+	setInputLocked(false)
 	spinButton.Text = "SPIN"
 	spinning = false
 end
@@ -245,6 +217,7 @@ end
 function SpinController.Init(parent: ScreenGui, stateController)
 	StateController = stateController
 	build(parent)
+	RevealController.Init(buildView())
 	spinButton.MouseButton1Click:Connect(onClick)
 end
 

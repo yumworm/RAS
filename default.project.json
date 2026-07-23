@@ -7,6 +7,21 @@
       "Modules": {
         "$path": "src/ReplicatedStorage/Modules"
       },
+      "Assets": {
+        "$className": "Folder",
+        "Presentation": {
+          "$className": "Folder",
+          "Particles": { "$className": "Folder" },
+          "StandardBanners": { "$className": "Folder" },
+          "FlagshipBanners": { "$className": "Folder" },
+          "Audio": {
+            "$className": "Folder",
+            "RarityChimes": { "$className": "Folder" },
+            "Flagship": { "$className": "Folder" }
+          },
+          "Animations": { "$className": "Folder" }
+        }
+      },
       "Remotes": {
         "$className": "Folder",
         "ClientReady": { "$className": "RemoteEvent" },
