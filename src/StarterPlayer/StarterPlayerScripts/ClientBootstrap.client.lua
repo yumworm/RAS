@@ -12,6 +12,9 @@ local StateController = require(Client.Controllers.StateController)
 local SpinController = require(Client.Controllers.SpinController)
 local DonationController = require(Client.Controllers.DonationController)
 local DonationLeaderboardController = require(Client.Controllers.DonationLeaderboardController)
+local AudioController = require(Client.Controllers.AudioController)
+local SettingsController = require(Client.Controllers.SettingsController)
+local FTUEController = require(Client.Controllers.FTUEController)
 local HUDController = require(Client.UI.HUDController)
 local InventoryController = require(Client.UI.InventoryController)
 
@@ -26,6 +29,8 @@ Remotes.StateUpdate.OnClientEvent:Connect(function(payload)
 end)
 Remotes.SpinResult.OnClientEvent:Connect(function(payload)
 	SpinController.OnResult(payload)
+	-- A server-confirmed spin also ends the FTUE first-spin pulse.
+	FTUEController.OnSpinResult(payload)
 end)
 
 -- Donation remotes.
@@ -62,6 +67,10 @@ Remotes.DonationStandEffect.OnClientEvent:Connect(function()
 	end)
 end)
 
+-- Start the audio bus before anything can play a sound, so early SFX / BGM route
+-- through it and honour the Master/Music/SFX settings once they arrive.
+AudioController.Init()
+
 -- Build the HUD.
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MainHUD"
@@ -74,6 +83,8 @@ InventoryController.Init(screenGui, StateController)
 SpinController.Init(screenGui, StateController)
 DonationLeaderboardController.Init(screenGui)
 DonationController.Init(screenGui, StateController, DonationLeaderboardController)
+SettingsController.Init(screenGui, StateController)
+FTUEController.Init(screenGui, StateController, SpinController.GetSpinButton())
 
 -- Tell the server we're ready to receive state. This closes the race where the
 -- server's init-time snapshot could fire before our handlers were connected.

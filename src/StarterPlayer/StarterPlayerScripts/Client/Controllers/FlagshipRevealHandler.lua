@@ -13,7 +13,6 @@
 --     soft-lock). Individual placeholder ids degrade gracefully (skip the image,
 --     fall back to the rarity chime) while the sequence still runs.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
@@ -24,6 +23,7 @@ local PresentationConfig = require(Configuration.PresentationConfig)
 local StreamerDatabase = require(Configuration.StreamerDatabase)
 
 local StandardRevealHandler = require(script.Parent.StandardRevealHandler)
+local AudioController = require(script.Parent.AudioController)
 
 local FlagshipRevealHandler = {}
 
@@ -75,27 +75,13 @@ end
 
 local function playFlagshipSound(assets, rarityName: string)
 	-- Prefer the streamer's signature sound; fall back to the rarity chime; else
-	-- stay silent. Never hard-depend on a real asset existing.
+	-- stay silent. Routed through the SFX bus so Master/SFX toggles apply, and the
+	-- bus owns instance cleanup.
 	local id = assets and assets.RevealSoundId
 	if not PresentationConfig.IsAssetSet(id) then
 		id = PresentationConfig.RarityChimes[rarityName]
 	end
-	if not PresentationConfig.IsAssetSet(id) then
-		return
-	end
-	local sound = Instance.new("Sound")
-	sound.SoundId = id
-	sound.Volume = 0.6
-	sound.Parent = SoundService
-	sound.Ended:Once(function()
-		sound:Destroy()
-	end)
-	task.delay(8, function()
-		if sound and sound.Parent then
-			sound:Destroy()
-		end
-	end)
-	sound:Play()
+	AudioController.PlaySFX(id, { Volume = 0.6 })
 end
 
 local function particleBurst(view, color: Color3, rainbow: boolean, preset: string)

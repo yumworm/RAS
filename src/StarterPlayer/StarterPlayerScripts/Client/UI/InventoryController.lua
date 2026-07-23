@@ -17,10 +17,18 @@ local function build(parent: ScreenGui)
 	sidebar.Name = "Sidebar"
 	sidebar.AnchorPoint = Vector2.new(1, 0.5)
 	sidebar.Position = UDim2.new(1, -16, 0.5, 0)
-	sidebar.Size = UDim2.fromOffset(280, 470)
+	-- Viewport-relative so it shrinks on small screens instead of dominating them;
+	-- the size constraint keeps the desktop look identical (clamped to 280x470) and
+	-- guarantees it stays usable and scrollable on phones (floored at 150x260).
+	sidebar.Size = UDim2.new(0.28, 0, 0.72, 0)
 	sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 	sidebar.BorderSizePixel = 0
 	sidebar.Parent = parent
+
+	local sizeConstraint = Instance.new("UISizeConstraint")
+	sizeConstraint.MaxSize = Vector2.new(280, 470)
+	sizeConstraint.MinSize = Vector2.new(150, 260)
+	sizeConstraint.Parent = sidebar
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)

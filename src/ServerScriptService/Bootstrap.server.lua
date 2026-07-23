@@ -11,6 +11,7 @@ local Inventory = Server.Inventory
 local PlayerFolder = Server.Player
 local Networking = Server.Networking
 local Donation = Server.Donation
+local Systems = Server.Systems
 
 local Services = require(Core.Services)
 local Logger = require(Utilities.Logger)
@@ -53,6 +54,7 @@ Services.NetworkService = require(Networking.NetworkService)
 Services.DonationLeaderboard = require(Donation.DonationLeaderboard)
 Services.RobuxDonationSystem = require(Donation.RobuxDonationSystem)
 Services.GlobalDonationStandSystem = require(Donation.GlobalDonationStandSystem)
+Services.AnalyticsMonitorSystem = require(Systems.Analytics.AnalyticsMonitorSystem)
 
 -- 3) Initialize (they wire dependencies via the registry, at call time).
 for _, name in ipairs({
@@ -67,6 +69,7 @@ for _, name in ipairs({
 	"DonationLeaderboard",
 	"RobuxDonationSystem",
 	"GlobalDonationStandSystem",
+	"AnalyticsMonitorSystem",
 }) do
 	local service = Services[name]
 	if service.Init then
@@ -79,6 +82,8 @@ end
 Services.NetworkService.SetSpinEnabled(gachaSafe)
 Services.NetworkService.Start()
 Services.PlayerManager.Start()
+-- Developer-only observability (economy soft-cap + donation funnel + snapshots).
+Services.AnalyticsMonitorSystem.Start()
 
 -- 5) Donation subsystem. The stand is built first so the leaderboard's refresh loop
 -- always has a board to render into; the receipt/prompt handler and board loop start

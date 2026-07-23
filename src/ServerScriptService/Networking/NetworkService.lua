@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Configuration = ReplicatedStorage.Modules.Configuration
 local GameConfig = require(Configuration.GameConfig)
+local GameSettingsConfig = require(Configuration.GameSettingsConfig)
 local StreamerDatabase = require(Configuration.StreamerDatabase)
 local PresentationConfig = require(Configuration.PresentationConfig)
 
@@ -215,7 +216,62 @@ local function handleSpinRequest(player: Player)
 	runtime.spinActive = false
 end
 
+--------------------------------------------------------------------------------
+-- Inbound: settings update (preferences only, validated + rate-limited)
+--------------------------------------------------------------------------------
+
+-- The client may only change its own preference booleans. Every key is checked
+-- against GameSettingsConfig.MutableSettingKeys and every value must be the exact
+-- type declared there, so currency, inventory, spins or donor totals can never be
+-- smuggled through this remote. Unknown keys and wrong types are ignored silently.
+local function handleSettingsUpdate(player: Player, payload: any)
+	local userId = player.UserId
+	local runtime = Runtime.Get(userId)
+	local profile = Services.ProfileService.Get(userId)
+	if not runtime or not profile or not runtime.initialized then
+		return
+	end
+	if type(payload) ~= "table" then
+		return
+	end
+
+	-- Rate limit: drop bursts so a spammer can't hammer saves.
+	local now = os.clock()
+	if now - (runtime.lastSettingsAt or 0) < GameSettingsConfig.SettingsUpdateRateLimitSec then
+		return
+	end
+
+	local applied = false
+	for key, expectedType in pairs(GameSettingsConfig.MutableSettingKeys) do
+		local value = payload[key]
+		if value ~= nil and typeof(value) == expectedType then
+			if profile.settings[key] ~= value then
+				profile.settings[key] = value
+				applied = true
+			end
+		end
+	end
+
+	if not applied then
+		return -- nothing valid changed; don't touch the rate-limit clock or save
+	end
+
+	runtime.lastSettingsAt = now
+
+	-- Echo the authoritative settings back as a normal state delta and persist.
+	StateSync.Mark(userId, "settings", profile.settings)
+	NetworkService.FlushState(userId)
+	Services.SaveManager.RequestSave(userId)
+end
+
 function NetworkService.Start()
+	Remotes.RequestUpdateSettings.OnServerEvent:Connect(function(player, payload)
+		local ok, err = pcall(handleSettingsUpdate, player, payload)
+		if not ok then
+			Logger.Error("Network", string.format("Settings handler error: %s", tostring(err)))
+		end
+	end)
+
 	Remotes.SpinRequest.OnServerEvent:Connect(function(player)
 		-- Wrap so a malformed request can never bubble an error up.
 		local ok, err = pcall(handleSpinRequest, player)

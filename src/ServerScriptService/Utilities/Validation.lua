@@ -10,6 +10,7 @@ local StreamerDatabase = require(Configuration.StreamerDatabase)
 local WorldConfig = require(Configuration.WorldConfig)
 local DonationConfig = require(Configuration.DonationConfig)
 local PresentationConfig = require(Configuration.PresentationConfig)
+local GameSettingsConfig = require(Configuration.GameSettingsConfig)
 local NumberFormatter = require(ReplicatedStorage.Modules.Shared.NumberFormatter)
 
 local Validation = {}
@@ -294,6 +295,39 @@ local function validatePresentation(errors, warnings)
 	end
 end
 
+-- Phase 5 launch-polish config. Fatal issues here would make onboarding/analytics
+-- misbehave; volume ranges only warn because the audio bus clamps them at apply
+-- time. An empty BgmSoundId is intentionally allowed (means "no BGM").
+local function validateSettingsConfig(errors, warnings)
+	local ftue = GameSettingsConfig.FTUE
+	if type(ftue) ~= "table" or type(ftue.WelcomeDurationSec) ~= "number" or ftue.WelcomeDurationSec <= 0 then
+		table.insert(errors, "GameSettingsConfig.FTUE.WelcomeDurationSec must be a number greater than 0")
+	end
+
+	local analytics = GameSettingsConfig.Analytics
+	if type(analytics) ~= "table" or type(analytics.EconomyCapSoft) ~= "number" or analytics.EconomyCapSoft <= 0 then
+		table.insert(errors, "GameSettingsConfig.Analytics.EconomyCapSoft must be a number greater than 0")
+	end
+
+	local audio = GameSettingsConfig.Audio
+	if type(audio) == "table" then
+		for _, field in ipairs({ "BgmVolume", "SfxDefaultVolume" }) do
+			local v = audio[field]
+			if type(v) ~= "number" or v < 0 or v > 1 then
+				table.insert(
+					warnings,
+					string.format("GameSettingsConfig.Audio.%s should be within 0-1; it will be clamped at apply time", field)
+				)
+			end
+		end
+		if type(audio.BgmSoundId) ~= "string" then
+			table.insert(errors, "GameSettingsConfig.Audio.BgmSoundId must be a string (\"\" is allowed for no BGM)")
+		end
+	else
+		table.insert(errors, "GameSettingsConfig.Audio is missing")
+	end
+end
+
 -- Runs all checks. Returns two arrays: fatal `errors` (empty = OK) and non-fatal
 -- `warnings`. Callers gate the gacha on errors and log warnings for developers.
 function Validation.ValidateAll()
@@ -303,6 +337,7 @@ function Validation.ValidateAll()
 	validateDatabase(errors)
 	validateDonationConfig(errors)
 	validatePresentation(errors, warnings)
+	validateSettingsConfig(errors, warnings)
 	return errors, warnings
 end
 

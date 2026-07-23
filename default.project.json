@@ -35,7 +35,8 @@
         "GlobalDonorLeaderboardUpdated": { "$className": "RemoteEvent" },
         "DonationNotification": { "$className": "RemoteEvent" },
         "DonationStandEffect": { "$className": "RemoteEvent" },
-        "OpenDonationPanel": { "$className": "RemoteEvent" }
+        "OpenDonationPanel": { "$className": "RemoteEvent" },
+        "RequestUpdateSettings": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {

@@ -10,10 +10,15 @@ sessions, economy, validation, and content-ready expansion hooks), Phase 3 (one
 shared Global Donation Stand: donate real Robux via secure, idempotent
 `ProcessReceipt` crediting and climb a global all-time Top 100 Donors board
 backed by an OrderedDataStore; a support path only, granting zero Streamer Bucks
-and never touching the capped Bucks economy), and Phase 4 (the Two-Tier
-Presentation System: instant Standard reveals for Common through Legendary,
-cinematic Flagship reveals for Mythic and Secret; gameplay and odds are
-unchanged and presentation never touches income).
+and never touching the capped Bucks economy), Phase 4 (the Two-Tier Presentation
+System: instant Standard reveals for Common through Legendary, cinematic Flagship
+reveals for Mythic and Secret), and Phase 5 (the 1.0 launch-polish wrapper:
+frictionless first-time experience, a settings menu with a central audio bus,
+cross-device UI scaling, and developer-only economy / funnel analytics).
+Gameplay and odds are unchanged; presentation never touches income, and Phase 5
+adds no new mechanics, currencies, or monetization. Phase 5's donation-aware
+seams (funnel logging, a donation-sound hook on the audio bus, donation /
+leaderboard scaling, stand lighting) wire directly into the Phase 3 stand.
 
 ## Project layout
 
@@ -23,6 +28,7 @@ src/
   ReplicatedStorage/Modules/
     Configuration/
       GameConfig.lua        All balancing values (autosave, cooldown, $10T cap, multipliers)
+      GameSettingsConfig.lua  Phase 5 polish tuning: FTUE copy, audio bus defaults, analytics thresholds, UI sizes
       RarityConfig.lua      7 tiers: color, income scaling, sort priority, reveal presets
       PresentationConfig.lua  Two-Tier reveal routing: Flagship vs Standard, chimes, timeouts
       StreamerDatabase.lua  25 streamers + derived rarity/income/weight/presentation_type
@@ -43,18 +49,20 @@ src/
     Donation/     RobuxDonationSystem (prompts + ProcessReceipt + credit),
                   DonationLeaderboard (OrderedDataStore + Top 100 cache),
                   GlobalDonationStandSystem (the one world stand + board)
+    Systems/      Analytics/AnalyticsMonitorSystem (dev-only economy + funnel logs)
   StarterPlayer/StarterPlayerScripts/
     ClientBootstrap.client.lua            Entry point; wires remotes -> controllers
     Client/Controllers/  StateController, SpinController, RevealController,
                          StandardRevealHandler, FlagshipRevealHandler,
                          DonationController (panel + Donate button),
-                         DonationLeaderboardController (Top 100 panel)
+                         DonationLeaderboardController (Top 100 panel),
+                         AudioController, SettingsController, FTUEController
     Client/UI/           HUDController, InventoryController
 ```
 
 `ReplicatedStorage/Remotes` (`ClientReady`, `SpinRequest`, `SpinResult`,
-`InitialState`, `StateUpdate`, plus the donation set `RequestDonationPrompt`,
-`DonationPromptResult`, `RequestGlobalDonorLeaderboard`,
+`InitialState`, `StateUpdate`, `RequestUpdateSettings`, plus the donation set
+`RequestDonationPrompt`, `DonationPromptResult`, `RequestGlobalDonorLeaderboard`,
 `GlobalDonorLeaderboardUpdated`, `DonationNotification`, `DonationStandEffect`,
 `OpenDonationPanel`) is defined directly in `default.project.json`. Rojo creates
 those `RemoteEvent` instances on sync.
@@ -77,6 +85,17 @@ those `RemoteEvent` instances on sync.
   and Secret get a bounded, input-locked cinematic that always cleans up and
   unlocks, and falls back to the instant reveal if its assets are missing.
   Presentation never feeds odds or income.
+- **Launch polish (Phase 5).** Players drop straight into the world (no menu
+  gate). A first-join welcome toast auto-fades and a gentle pulse sits on the
+  Spin button until the first server-confirmed spin. A gear opens a Master /
+  Music / SFX settings panel; the server validates and persists those preference
+  booleans (and nothing else), and a central client `AudioController` owns the
+  looping BGM and a one-shot SFX bus so every Phase 4 reveal sound obeys the
+  toggles. Server-side `AnalyticsMonitorSystem` logs (developers only) when Bucks
+  cross the ~10T soft cap and exposes a rate-limited donation-funnel API for a
+  future Phase 3. Because this environment cannot run Studio, the phone/tablet
+  layout emulator matrix (Phase 5 Section 12.3) remains a human verification
+  step; the structural scaling (size constraints, min touch targets) is in place.
 
 ## Running it in Roblox Studio
 
