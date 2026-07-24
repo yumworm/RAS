@@ -10,6 +10,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 local Client = script.Parent.Client
 local StateController = require(Client.Controllers.StateController)
 local SpinController = require(Client.Controllers.SpinController)
+local DonationController = require(Client.Controllers.DonationController)
+local DonationLeaderboardController = require(Client.Controllers.DonationLeaderboardController)
 local AudioController = require(Client.Controllers.AudioController)
 local SettingsController = require(Client.Controllers.SettingsController)
 local FTUEController = require(Client.Controllers.FTUEController)
@@ -31,6 +33,40 @@ Remotes.SpinResult.OnClientEvent:Connect(function(payload)
 	FTUEController.OnSpinResult(payload)
 end)
 
+-- Donation remotes.
+Remotes.OpenDonationPanel.OnClientEvent:Connect(function()
+	DonationController.Open()
+end)
+Remotes.DonationPromptResult.OnClientEvent:Connect(function(payload)
+	DonationController.OnPromptResult(payload)
+end)
+Remotes.DonationNotification.OnClientEvent:Connect(function(payload)
+	DonationController.OnNotification(payload)
+end)
+Remotes.GlobalDonorLeaderboardUpdated.OnClientEvent:Connect(function(payload)
+	DonationLeaderboardController.ApplySnapshot(payload)
+end)
+-- Optional celebratory particle at the stand (safe no-op if the stand is absent).
+Remotes.DonationStandEffect.OnClientEvent:Connect(function()
+	local area = workspace:FindFirstChild("DonationArea")
+	local stand = area and area:FindFirstChild("GlobalDonationStand")
+	local anchor = stand and stand:FindFirstChild("EffectAnchor", true)
+	if not anchor then
+		return
+	end
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Rate = 0
+	emitter.Lifetime = NumberRange.new(0.6, 1.1)
+	emitter.Speed = NumberRange.new(6, 10)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Color = ColorSequence.new(Color3.fromRGB(120, 255, 140))
+	emitter.Parent = anchor
+	emitter:Emit(24)
+	task.delay(1.5, function()
+		emitter:Destroy()
+	end)
+end)
+
 -- Start the audio bus before anything can play a sound, so early SFX / BGM route
 -- through it and honour the Master/Music/SFX settings once they arrive.
 AudioController.Init()
@@ -45,6 +81,8 @@ screenGui.Parent = playerGui
 HUDController.Init(screenGui, StateController)
 InventoryController.Init(screenGui, StateController)
 SpinController.Init(screenGui, StateController)
+DonationLeaderboardController.Init(screenGui)
+DonationController.Init(screenGui, StateController, DonationLeaderboardController)
 SettingsController.Init(screenGui, StateController)
 FTUEController.Init(screenGui, StateController, SpinController.GetSpinButton())
 

@@ -73,6 +73,11 @@ function NetworkService.SendInitialState(player: Player)
 		},
 		settings = profile.settings,
 		economyCap = GameConfig.EconomyCap,
+		donation = {
+			robuxDonatedLifetime = profile.donation.robuxDonatedLifetime,
+			donationPurchaseCount = profile.donation.donationPurchaseCount,
+			biggestRobuxDonation = profile.donation.biggestRobuxDonation,
+		},
 	})
 end
 

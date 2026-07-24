@@ -8,6 +8,7 @@ local Configuration = ReplicatedStorage.Modules.Configuration
 local RarityConfig = require(Configuration.RarityConfig)
 local StreamerDatabase = require(Configuration.StreamerDatabase)
 local WorldConfig = require(Configuration.WorldConfig)
+local DonationConfig = require(Configuration.DonationConfig)
 local PresentationConfig = require(Configuration.PresentationConfig)
 local GameSettingsConfig = require(Configuration.GameSettingsConfig)
 local NumberFormatter = require(ReplicatedStorage.Modules.Shared.NumberFormatter)
@@ -128,6 +129,59 @@ local function validateDatabase(errors)
 		if streamer.is_featured and (type(pres) ~= "table" or pres.reveal_animation_id == "") then
 			table.insert(errors, string.format("%s is Featured but has no reveal_animation_id", label))
 		end
+	end
+end
+
+-- Donation config structural integrity. A misconfigured product id being 0 is NOT
+-- an error here (that is an expected pre-launch state, warned about at runtime by
+-- RobuxDonationSystem, which blocks those prompts). We only flag structural breakage
+-- that would make crediting or ranking unsafe: bad amounts, colliding product ids,
+-- or out-of-range limits.
+local function validateDonationConfig(errors)
+	local amounts = DonationConfig.DonationAmounts
+	if type(amounts) ~= "table" or #amounts == 0 then
+		table.insert(errors, "DonationConfig.DonationAmounts must be a non-empty list")
+		return
+	end
+
+	for _, amount in ipairs(amounts) do
+		if type(amount) ~= "number" or amount <= 0 or math.floor(amount) ~= amount then
+			table.insert(errors, string.format("DonationConfig amount %s must be a positive integer", tostring(amount)))
+		end
+		if DonationConfig.ProductIds[amount] == nil then
+			table.insert(errors, string.format("DonationConfig.ProductIds is missing an entry for amount %s", tostring(amount)))
+		end
+	end
+
+	-- No two amounts may share the same non-zero product id (would mis-credit).
+	local seenProductIds = {}
+	for _, amount in ipairs(amounts) do
+		local productId = DonationConfig.ProductIds[amount]
+		if type(productId) == "number" and productId > 0 then
+			if seenProductIds[productId] then
+				table.insert(
+					errors,
+					string.format("DonationConfig product id %d is used by more than one amount", productId)
+				)
+			end
+			seenProductIds[productId] = true
+		end
+	end
+
+	if DonationConfig.MaxLeaderboardEntries ~= 100 then
+		table.insert(errors, "DonationConfig.MaxLeaderboardEntries must be 100")
+	end
+	if type(DonationConfig.DonationPromptCooldown) ~= "number" or DonationConfig.DonationPromptCooldown <= 0 then
+		table.insert(errors, "DonationConfig.DonationPromptCooldown must be greater than 0")
+	end
+	if type(DonationConfig.LeaderboardUpdateInterval) ~= "number" or DonationConfig.LeaderboardUpdateInterval < 10 then
+		table.insert(errors, "DonationConfig.LeaderboardUpdateInterval must be at least 10 seconds")
+	end
+	if type(DonationConfig.OrderedDataStoreName) ~= "string" or DonationConfig.OrderedDataStoreName == "" then
+		table.insert(errors, "DonationConfig.OrderedDataStoreName must be a non-empty string")
+	end
+	if type(DonationConfig.ReceiptDataStoreName) ~= "string" or DonationConfig.ReceiptDataStoreName == "" then
+		table.insert(errors, "DonationConfig.ReceiptDataStoreName must be a non-empty string")
 	end
 end
 
@@ -281,6 +335,7 @@ function Validation.ValidateAll()
 	local warnings = {}
 	validateFormatter(errors)
 	validateDatabase(errors)
+	validateDonationConfig(errors)
 	validatePresentation(errors, warnings)
 	validateSettingsConfig(errors, warnings)
 	return errors, warnings

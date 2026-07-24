@@ -51,6 +51,19 @@ function ProfileTemplate.Default()
 			discovered = {},
 		},
 
+		-- Real-Robux donation stats (Phase 3). Uncapped flex stats: they only ever
+		-- increase, are never spendable, and are NEVER clamped to the Bucks economy
+		-- cap. Credited exclusively by RobuxDonationSystem via ProcessReceipt.
+		-- `recentReceipts` is a small ring of the most recent granted PurchaseIds --
+		-- the in-profile idempotency guard that makes a donation credit apply exactly
+		-- once even if the separate receipt store write is lost.
+		donation = {
+			robuxDonatedLifetime = 0,
+			donationPurchaseCount = 0,
+			biggestRobuxDonation = 0,
+			recentReceipts = {}, -- array of PurchaseId strings, capped
+		},
+
 		-- Feature gates future systems flip on. All off at start.
 		unlockedFeatures = {
 			garage = false,

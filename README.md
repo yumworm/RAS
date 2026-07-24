@@ -6,21 +6,19 @@ income based on rarity, manage a side-bar inventory. See
 
 **Built so far:** Phase 1 (core spin/income/inventory loop), Phase 2 (a
 production-grade, server-authoritative backend rebuild: profiles, saving,
-sessions, economy, validation, and content-ready expansion hooks), Phase 4
-(the Two-Tier Presentation System: instant Standard reveals for Common through
-Legendary, cinematic Flagship reveals for Mythic and Secret), and Phase 5 (the
-1.0 launch-polish wrapper: frictionless first-time experience, a settings menu
-with a central audio bus, cross-device UI scaling, and developer-only economy /
-funnel analytics). Gameplay and odds are unchanged; presentation never touches
-income, and Phase 5 adds no new mechanics, currencies, or monetization.
-
-> Note: Phase 5 references a Phase 3 Global Donation Stand (donation panel, Top
-> 100 Robux donors, ProcessReceipt) that is not part of this repository yet. The
-> Phase-3-dependent pieces of Phase 5 (donation funnel logging, a donation-sound
-> hook on the audio bus, donation/leaderboard scaling, stand lighting) are built
-> as dormant, ready-to-wire seams rather than a fabricated donation system, so
-> they light up automatically when Phase 3 lands. Building Phase 3 here would
-> violate Phase 5's own "no new monetization" rule.
+sessions, economy, validation, and content-ready expansion hooks), Phase 3 (one
+shared Global Donation Stand: donate real Robux via secure, idempotent
+`ProcessReceipt` crediting and climb a global all-time Top 100 Donors board
+backed by an OrderedDataStore; a support path only, granting zero Streamer Bucks
+and never touching the capped Bucks economy), Phase 4 (the Two-Tier Presentation
+System: instant Standard reveals for Common through Legendary, cinematic Flagship
+reveals for Mythic and Secret), and Phase 5 (the 1.0 launch-polish wrapper:
+frictionless first-time experience, a settings menu with a central audio bus,
+cross-device UI scaling, and developer-only economy / funnel analytics).
+Gameplay and odds are unchanged; presentation never touches income, and Phase 5
+adds no new mechanics, currencies, or monetization. Phase 5's donation-aware
+seams (funnel logging, a donation-sound hook on the audio bus, donation /
+leaderboard scaling, stand lighting) wire directly into the Phase 3 stand.
 
 ## Project layout
 
@@ -35,8 +33,9 @@ src/
       PresentationConfig.lua  Two-Tier reveal routing: Flagship vs Standard, chimes, timeouts
       StreamerDatabase.lua  25 streamers + derived rarity/income/weight/presentation_type
       WorldConfig.lua       Valid Collections / Banners / Regions
+      DonationConfig.lua    Robux amounts, product IDs, board/cooldown/UI tuning, copy
     Shared/
-      NumberFormatter.lua   K/M/B/T formatting (intentionally stops at T)
+      NumberFormatter.lua   K/M/B/T for Bucks (stops at T); FormatRobux is uncapped (Qa+)
   Assets/Presentation/                     Folder tree for reveal assets (particles, banners, audio)
   ServerScriptService/                    (mapped into ServerScriptService as "Server")
     Bootstrap.server.lua    Validates config, wires services, starts the game
@@ -47,18 +46,26 @@ src/
     Inventory/    InventoryService (stacking + sorting), CollectionService
     Player/       SessionTracker, PlayerManager (lifecycle + loops)
     Networking/   NetworkService (authoritative remotes, validation, deltas)
+    Donation/     RobuxDonationSystem (prompts + ProcessReceipt + credit),
+                  DonationLeaderboard (OrderedDataStore + Top 100 cache),
+                  GlobalDonationStandSystem (the one world stand + board)
     Systems/      Analytics/AnalyticsMonitorSystem (dev-only economy + funnel logs)
   StarterPlayer/StarterPlayerScripts/
     ClientBootstrap.client.lua            Entry point; wires remotes -> controllers
     Client/Controllers/  StateController, SpinController, RevealController,
                          StandardRevealHandler, FlagshipRevealHandler,
+                         DonationController (panel + Donate button),
+                         DonationLeaderboardController (Top 100 panel),
                          AudioController, SettingsController, FTUEController
     Client/UI/           HUDController, InventoryController
 ```
 
 `ReplicatedStorage/Remotes` (`ClientReady`, `SpinRequest`, `SpinResult`,
-`InitialState`, `StateUpdate`, `RequestUpdateSettings`) is defined directly in
-`default.project.json`. Rojo creates those `RemoteEvent` instances on sync.
+`InitialState`, `StateUpdate`, `RequestUpdateSettings`, plus the donation set
+`RequestDonationPrompt`, `DonationPromptResult`, `RequestGlobalDonorLeaderboard`,
+`GlobalDonorLeaderboardUpdated`, `DonationNotification`, `DonationStandEffect`,
+`OpenDonationPanel`) is defined directly in `default.project.json`. Rojo creates
+those `RemoteEvent` instances on sync.
 
 ## Architecture at a glance
 
