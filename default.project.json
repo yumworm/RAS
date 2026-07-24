@@ -7,18 +7,43 @@
       "Modules": {
         "$path": "src/ReplicatedStorage/Modules"
       },
+      "Assets": {
+        "$className": "Folder",
+        "Presentation": {
+          "$className": "Folder",
+          "Particles": { "$className": "Folder" },
+          "StandardBanners": { "$className": "Folder" },
+          "FlagshipBanners": { "$className": "Folder" },
+          "Audio": {
+            "$className": "Folder",
+            "RarityChimes": { "$className": "Folder" },
+            "Flagship": { "$className": "Folder" }
+          },
+          "Animations": { "$className": "Folder" }
+        }
+      },
       "Remotes": {
         "$className": "Folder",
-        "SpinRequest": {
-          "$className": "RemoteEvent"
-        },
-        "SpinResult": {
-          "$className": "RemoteEvent"
-        }
+        "ClientReady": { "$className": "RemoteEvent" },
+        "SpinRequest": { "$className": "RemoteEvent" },
+        "SpinResult": { "$className": "RemoteEvent" },
+        "InitialState": { "$className": "RemoteEvent" },
+        "StateUpdate": { "$className": "RemoteEvent" },
+        "RequestDonationPrompt": { "$className": "RemoteEvent" },
+        "DonationPromptResult": { "$className": "RemoteEvent" },
+        "RequestGlobalDonorLeaderboard": { "$className": "RemoteEvent" },
+        "GlobalDonorLeaderboardUpdated": { "$className": "RemoteEvent" },
+        "DonationNotification": { "$className": "RemoteEvent" },
+        "DonationStandEffect": { "$className": "RemoteEvent" },
+        "OpenDonationPanel": { "$className": "RemoteEvent" },
+        "RequestUpdateSettings": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {
-      "$path": "src/ServerScriptService"
+      "$className": "ServerScriptService",
+      "Server": {
+        "$path": "src/ServerScriptService"
+      }
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
