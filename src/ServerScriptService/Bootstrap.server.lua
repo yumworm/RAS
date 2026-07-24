@@ -92,4 +92,8 @@ Services.GlobalDonationStandSystem.Start()
 Services.DonationLeaderboard.Start()
 Services.RobuxDonationSystem.Start()
 
+-- 6) Launch-polish lighting. One-shot, idempotent accents on the now-built Global
+-- Donation Stand so it reads clearly and distinct from spawn. No-op if absent.
+require(Systems.Lighting.StandLightingSetup).Apply()
+
 Logger.Info("Boot", "RollAStream server started")

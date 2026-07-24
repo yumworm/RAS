@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DonationConfig = require(ReplicatedStorage.Modules.Configuration.DonationConfig)
 local NumberFormatter = require(ReplicatedStorage.Modules.Shared.NumberFormatter)
+local UIFit = require(script.Parent.Parent.UI.UIFit)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local RequestGlobalDonorLeaderboard = Remotes:WaitForChild("RequestGlobalDonorLeaderboard")
@@ -73,6 +74,9 @@ local function build(parent: ScreenGui)
 	local sizeConstraint = Instance.new("UISizeConstraint")
 	sizeConstraint.MaxSize = DonationConfig.UI.LeaderboardPanelSize
 	sizeConstraint.Parent = panel
+	-- The Top 100 panel is large (580x650); uniformly scale it to fit phone/tablet
+	-- viewports so it never overflows, without reworking its offset-based rows.
+	UIFit.Fit(panel, DonationConfig.UI.LeaderboardPanelSize.X, DonationConfig.UI.LeaderboardPanelSize.Y)
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1

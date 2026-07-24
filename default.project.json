@@ -36,7 +36,8 @@
         "DonationNotification": { "$className": "RemoteEvent" },
         "DonationStandEffect": { "$className": "RemoteEvent" },
         "OpenDonationPanel": { "$className": "RemoteEvent" },
-        "RequestUpdateSettings": { "$className": "RemoteEvent" }
+        "RequestUpdateSettings": { "$className": "RemoteEvent" },
+        "AnalyticsDonationPanelOpened": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {

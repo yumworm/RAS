@@ -49,7 +49,8 @@ src/
     Donation/     RobuxDonationSystem (prompts + ProcessReceipt + credit),
                   DonationLeaderboard (OrderedDataStore + Top 100 cache),
                   GlobalDonationStandSystem (the one world stand + board)
-    Systems/      Analytics/AnalyticsMonitorSystem (dev-only economy + funnel logs)
+    Systems/      Analytics/AnalyticsMonitorSystem (dev-only economy + funnel logs),
+                  Lighting/StandLightingSetup (idempotent donation-stand light accents)
   StarterPlayer/StarterPlayerScripts/
     ClientBootstrap.client.lua            Entry point; wires remotes -> controllers
     Client/Controllers/  StateController, SpinController, RevealController,
@@ -57,15 +58,16 @@ src/
                          DonationController (panel + Donate button),
                          DonationLeaderboardController (Top 100 panel),
                          AudioController, SettingsController, FTUEController
-    Client/UI/           HUDController, InventoryController
+    Client/UI/           HUDController, InventoryController, UIFit (uniform panel scaling)
 ```
 
 `ReplicatedStorage/Remotes` (`ClientReady`, `SpinRequest`, `SpinResult`,
 `InitialState`, `StateUpdate`, `RequestUpdateSettings`, plus the donation set
 `RequestDonationPrompt`, `DonationPromptResult`, `RequestGlobalDonorLeaderboard`,
 `GlobalDonorLeaderboardUpdated`, `DonationNotification`, `DonationStandEffect`,
-`OpenDonationPanel`) is defined directly in `default.project.json`. Rojo creates
-those `RemoteEvent` instances on sync.
+`OpenDonationPanel`, and the developer-only `AnalyticsDonationPanelOpened`) is
+defined directly in `default.project.json`. Rojo creates those `RemoteEvent`
+instances on sync.
 
 ## Architecture at a glance
 
@@ -90,12 +92,16 @@ those `RemoteEvent` instances on sync.
   Spin button until the first server-confirmed spin. A gear opens a Master /
   Music / SFX settings panel; the server validates and persists those preference
   booleans (and nothing else), and a central client `AudioController` owns the
-  looping BGM and a one-shot SFX bus so every Phase 4 reveal sound obeys the
-  toggles. Server-side `AnalyticsMonitorSystem` logs (developers only) when Bucks
-  cross the ~10T soft cap and exposes a rate-limited donation-funnel API for a
-  future Phase 3. Because this environment cannot run Studio, the phone/tablet
-  layout emulator matrix (Phase 5 Section 12.3) remains a human verification
-  step; the structural scaling (size constraints, min touch targets) is in place.
+  looping BGM and a one-shot SFX bus so every Phase 4 reveal sound (and the Phase 3
+  donation success chime) obeys the toggles. Server-side `AnalyticsMonitorSystem`
+  logs (developers only) when Bucks cross the ~10T soft cap and records the Phase 3
+  donation funnel (panel open -> prompt -> grant), rate-limiting the noisy open
+  event. The Global Donation Stand gets idempotent light accents, the donation and
+  Top 100 panels scale to fit phones via a uniform `UIFit`, and the Settings gear
+  sits in its own top-bar slot beside the Donate / Leaderboard buttons. Because this
+  environment cannot run Studio, the phone/tablet layout emulator matrix (Phase 5
+  Section 12.3) remains a human verification step; the structural scaling (uniform
+  panel fit, size constraints, min touch targets) is in place.
 
 ## Running it in Roblox Studio
 

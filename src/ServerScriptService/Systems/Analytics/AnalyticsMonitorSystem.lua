@@ -9,8 +9,9 @@
 --      per-frame polling), it warns when a player's Bucks cross ~10T, debounced so
 --      it logs on the crossing and at most once per window thereafter.
 --   2. Donation funnel (Phase 3). A small Log API (panel opened / prompt requested
---      / grant) with a rate limit on the noisy "panel opened" event. These are the
---      wiring points Phase 3's donation systems call; dormant until then.
+--      / grant) with a rate limit on the noisy "panel opened" event. The Phase 3
+--      donation systems call these: the client fires AnalyticsDonationPanelOpened on
+--      open, RobuxDonationSystem reports prompt requests and grants.
 --   3. Periodic snapshot. Every SnapshotIntervalSec it logs player count and the
 --      running cap-warning count. In-memory only; no DataStore.
 local Players = game:GetService("Players")
@@ -18,6 +19,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Configuration = ReplicatedStorage.Modules.Configuration
 local GameSettingsConfig = require(Configuration.GameSettingsConfig)
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local Server = script.Parent.Parent.Parent
 local ExpansionHooks = require(Server.Core.ExpansionHooks)
@@ -75,7 +78,7 @@ local function checkEconomyCap(userId: number)
 end
 
 --------------------------------------------------------------------------------
--- Donation funnel API (Phase 3 wiring points; dormant until called)
+-- Donation funnel API (called by the Phase 3 donation systems)
 --------------------------------------------------------------------------------
 
 -- Rate-limited: the donation panel can be opened repeatedly, so only log at most
@@ -146,6 +149,19 @@ function AnalyticsMonitorSystem.Start()
 	-- per-frame). A throwing hook is already isolated by ExpansionHooks.
 	ExpansionHooks.Register("OnCurrencyChanged", function(userId: number)
 		checkEconomyCap(userId)
+	end)
+
+	-- Donation funnel: the client tells us when it opens the Global Donation Stand
+	-- panel (top of the funnel). The log itself is rate-limited per player, and the
+	-- handler is pcall-wrapped so a malformed fire can never fault the system. This
+	-- remote carries no gameplay authority -- it only marks "panel opened".
+	Remotes.AnalyticsDonationPanelOpened.OnServerEvent:Connect(function(player)
+		local ok, err = pcall(function()
+			AnalyticsMonitorSystem.LogDonationPanelOpened(player.UserId)
+		end)
+		if not ok then
+			Logger.Warn("Analytics", string.format("panel-open log error: %s", tostring(err)))
+		end
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)

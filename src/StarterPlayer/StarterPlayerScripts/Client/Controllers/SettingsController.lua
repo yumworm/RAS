@@ -119,11 +119,14 @@ local function makeToggleRow(parent: Instance, key: string, labelText: string, o
 end
 
 local function build(parent: ScreenGui)
-	-- Gear button, top-right, sized for a comfortable touch target.
+	-- Gear button, top-right, sized for a comfortable touch target. It sits in its own
+	-- slot to the LEFT of the Phase 3 Leaderboard (1,-144) and Donate (1,-16) buttons
+	-- so the three never overlap: [Settings][Leaderboard][Donate], right-aligned, ~8px
+	-- gaps. Vertically centered on the same line as those 34px-tall buttons.
 	local gear = Instance.new("TextButton")
 	gear.Name = "SettingsGear"
 	gear.AnchorPoint = Vector2.new(1, 0)
-	gear.Position = UDim2.new(1, -12, 0, 4)
+	gear.Position = UDim2.new(1, -284, 0, 4)
 	gear.Size = UDim2.fromOffset(GameSettingsConfig.UI.MinTouchPx, GameSettingsConfig.UI.MinTouchPx)
 	gear.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	gear.Font = Enum.Font.GothamBold

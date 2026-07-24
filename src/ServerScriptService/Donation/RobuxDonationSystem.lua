@@ -138,6 +138,10 @@ local function handleDonationPrompt(player: Player, amount: any)
 	end
 
 	Logger.Info("Donation", string.format("%d prompted for %d Robux (product %d)", userId, amount, productId))
+	-- Mid-funnel analytics (developer-only; log-only, never affects the purchase).
+	if Services.AnalyticsMonitorSystem then
+		Services.AnalyticsMonitorSystem.LogDonationPromptRequested(userId, productId)
+	end
 	reply(player, true, "Prompted")
 end
 
@@ -256,6 +260,11 @@ local function processReceipt(receiptInfo)
 			"Donation",
 			string.format("Granted %d Robux to %d (lifetime %d, receipt %s)", amount, userId, newLifetime, purchaseId)
 		)
+		-- Bottom-of-funnel analytics (developer-only). Log-only; the grant already
+		-- happened above and is never re-run here.
+		if Services.AnalyticsMonitorSystem then
+			Services.AnalyticsMonitorSystem.LogDonationGranted(userId, amount)
+		end
 		local player = Players:GetPlayerByUserId(userId)
 		if player then
 			local runtime = Runtime.Get(userId)
