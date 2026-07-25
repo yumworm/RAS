@@ -143,4 +143,22 @@ function StreamerDatabase.Get(id)
 	return StreamerDatabase.ById[id]
 end
 
+-- Exact-name lookup (case-sensitive), used by the Featured Streamer highlight to
+-- validate a configured name against the real roster. Returns nil when no streamer
+-- has that exact name. Built lazily on first use so roster order stays authoritative.
+local byName: { [string]: any }? = nil
+function StreamerDatabase.GetByName(name)
+	if type(name) ~= "string" or name == "" then
+		return nil
+	end
+	if not byName then
+		local map = {}
+		for _, streamer in ipairs(StreamerDatabase.All) do
+			map[streamer.name] = streamer
+		end
+		byName = map
+	end
+	return byName[name]
+end
+
 return StreamerDatabase

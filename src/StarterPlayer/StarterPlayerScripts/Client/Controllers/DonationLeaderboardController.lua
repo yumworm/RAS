@@ -22,6 +22,7 @@ local DonationLeaderboardController = {}
 local panel, rowsFrame, footerTotal, footerRank, refreshLabel
 local topBarButton
 local rowCache = {} -- rank -> Frame (reused across renders)
+local rowClickHandler: ((number) -> ())? = nil -- set by bootstrap -> opens a profile card
 
 local RANK_COLORS = {
 	[1] = Color3.fromRGB(255, 215, 0),
@@ -236,6 +237,23 @@ local function makeRow(rank: number): Frame
 	amountLabel.ZIndex = 32
 	amountLabel.Parent = row
 
+	-- Transparent click catcher: tapping a row opens that player's profile card. The
+	-- target UserId is stored as an attribute and refreshed per snapshot, so this
+	-- connection is wired once per cached row (never per render -> no growth).
+	local clickCatcher = Instance.new("TextButton")
+	clickCatcher.Name = "ClickCatcher"
+	clickCatcher.BackgroundTransparency = 1
+	clickCatcher.Text = ""
+	clickCatcher.Size = UDim2.fromScale(1, 1)
+	clickCatcher.ZIndex = 33
+	clickCatcher.Parent = row
+	clickCatcher.MouseButton1Click:Connect(function()
+		local userId = row:GetAttribute("UserId")
+		if rowClickHandler and type(userId) == "number" then
+			rowClickHandler(userId)
+		end
+	end)
+
 	return row
 end
 
@@ -272,6 +290,7 @@ local function applySnapshot(snapshot)
 		end
 		row.Visible = true
 		row.LayoutOrder = entry.Rank
+		row:SetAttribute("UserId", entry.UserId) -- target for the row click -> profile card
 
 		local podium = RANK_COLORS[entry.Rank]
 		local isSelf = localUserId ~= nil and entry.UserId == localUserId
@@ -335,6 +354,12 @@ function DonationLeaderboardController.Toggle()
 			DonationLeaderboardController.Open()
 		end
 	end
+end
+
+-- Register a handler invoked with a UserId when a leaderboard row is tapped (the
+-- bootstrap wires this to ProfileCardController.OpenForUser).
+function DonationLeaderboardController.SetRowClickHandler(fn: (number) -> ())
+	rowClickHandler = fn
 end
 
 function DonationLeaderboardController.Init(parent: ScreenGui)

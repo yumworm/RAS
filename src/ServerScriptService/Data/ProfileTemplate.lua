@@ -19,6 +19,12 @@ function ProfileTemplate.Default()
 	return {
 		schemaVersion = ProfileTemplate.CURRENT_VERSION,
 
+		-- Phase 6: unix seconds of the player's last logout, server-stamped on leave /
+		-- shutdown ONLY (the client can never set it). 0 means "never logged out
+		-- before" (a true first session), which suppresses the welcome-back summary.
+		-- This drives the Return Summary time-away read-out; it grants nothing.
+		lastLogout = 0,
+
 		-- Centralized economy state. Nothing edits these except EconomyService.
 		economy = {
 			currency = 0,

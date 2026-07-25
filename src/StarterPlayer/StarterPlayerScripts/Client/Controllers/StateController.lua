@@ -16,7 +16,14 @@ StateController.state = {
 	session = nil,
 	settings = nil,
 	economyCap = 0,
+	economy = nil, -- Phase 6: legacy economy stats snapshot (for the Stats panel)
 	donation = { robuxDonatedLifetime = 0, donationPurchaseCount = 0, biggestRobuxDonation = 0 },
+	-- Phase 6 retention layer (all server-provided, read-only mirrors).
+	featureFlags = nil,
+	featured = nil,
+	donationFeed = nil,
+	-- returnSummary is intentionally NOT held here; it is a one-shot payload consumed
+	-- directly by ReturnSummaryController from the initial snapshot.
 }
 
 local listeners = {}

@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DonationConfig = require(ReplicatedStorage.Modules.Configuration.DonationConfig)
+local LiveContentConfig = require(ReplicatedStorage.Modules.Configuration.LiveContentConfig)
 local NumberFormatter = require(ReplicatedStorage.Modules.Shared.NumberFormatter)
 
 local Server = script.Parent.Parent
@@ -25,6 +26,7 @@ local stand -- the GlobalDonationStand model
 local boardRowsFrame -- ScrollingFrame the board rows live in
 local boardUpdatedLabel -- "Last updated" label
 local boardEmptyLabel -- shown when there are no donors yet
+local boardRecentFrame -- "Recent supporters" strip (Phase 6, fed from DonationFeedSystem)
 
 -- Highlight colors for the podium (color/weight only -- no emoji, per the text rule).
 local RANK_COLORS = {
@@ -95,7 +97,9 @@ local function buildBoardSurface(boardPart: BasePart)
 	boardRowsFrame = Instance.new("ScrollingFrame")
 	boardRowsFrame.Name = "Rows"
 	boardRowsFrame.Position = UDim2.fromOffset(20, 98)
-	boardRowsFrame.Size = UDim2.new(1, -40, 1, -140)
+	-- Leaves room at the bottom for the Phase 6 "Recent supporters" strip + the
+	-- "Last updated" line (a taller reserved band than the Phase 3 -140).
+	boardRowsFrame.Size = UDim2.new(1, -40, 1, -232)
 	boardRowsFrame.BackgroundTransparency = 1
 	boardRowsFrame.BorderSizePixel = 0
 	boardRowsFrame.ScrollBarThickness = 8
@@ -120,6 +124,33 @@ local function buildBoardSurface(boardPart: BasePart)
 	boardEmptyLabel.Text = DonationConfig.Text.EmptyBoardText
 	boardEmptyLabel.Visible = false
 	boardEmptyLabel.Parent = bg
+
+	-- Phase 6: "Recent supporters" strip, fed from the same DonationFeedSystem cache the
+	-- live feed uses (no separate ODS read). Sits just above the "Last updated" line.
+	local recentTitle = Instance.new("TextLabel")
+	recentTitle.Name = "RecentTitle"
+	recentTitle.BackgroundTransparency = 1
+	recentTitle.AnchorPoint = Vector2.new(0, 1)
+	recentTitle.Position = UDim2.new(0, 20, 1, -104)
+	recentTitle.Size = UDim2.new(1, -40, 0, 22)
+	recentTitle.Font = Enum.Font.GothamBold
+	recentTitle.TextSize = 18
+	recentTitle.TextColor3 = Color3.fromRGB(150, 150, 165)
+	recentTitle.TextXAlignment = Enum.TextXAlignment.Left
+	recentTitle.Text = "RECENT SUPPORTERS"
+	recentTitle.Parent = bg
+
+	boardRecentFrame = Instance.new("Frame")
+	boardRecentFrame.Name = "Recent"
+	boardRecentFrame.BackgroundTransparency = 1
+	boardRecentFrame.AnchorPoint = Vector2.new(0, 1)
+	boardRecentFrame.Position = UDim2.new(0, 20, 1, -40)
+	boardRecentFrame.Size = UDim2.new(1, -40, 0, 62)
+	boardRecentFrame.Parent = bg
+	local recentLayout = Instance.new("UIListLayout")
+	recentLayout.Padding = UDim.new(0, 2)
+	recentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	recentLayout.Parent = boardRecentFrame
 
 	boardUpdatedLabel = Instance.new("TextLabel")
 	boardUpdatedLabel.Name = "Updated"
@@ -211,6 +242,7 @@ local function adoptPlacedStand(placed): boolean
 		boardRowsFrame = surface:FindFirstChild("Rows", true)
 		boardUpdatedLabel = surface:FindFirstChild("Updated", true)
 		boardEmptyLabel = surface:FindFirstChild("Empty", true)
+		boardRecentFrame = surface:FindFirstChild("Recent", true)
 	end
 	-- If the placed board lacks our expected structure, (re)build one on its part.
 	if boardPart and not boardRowsFrame then
@@ -303,9 +335,52 @@ local function renderBoard()
 	end
 end
 
+-- Render the "Recent supporters" strip from the DonationFeedSystem cache. Idempotent:
+-- it rebuilds at most StandRecentCount short labels each call, so it never accumulates
+-- instances. No-op when the strip or the feed system is absent.
+local function renderRecentStrip()
+	if not boardRecentFrame then
+		return
+	end
+	if not (Services.DonationFeedSystem and Services.DonationFeedSystem.GetRecent) then
+		return
+	end
+	local count = math.max(LiveContentConfig.DonationFeed.StandRecentCount, 0)
+	local recent = Services.DonationFeedSystem.GetRecent(count)
+
+	for _, child in ipairs(boardRecentFrame:GetChildren()) do
+		if child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+
+	for i, event in ipairs(recent) do
+		local label = Instance.new("TextLabel")
+		label.Name = "Recent_" .. i
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.new(1, 0, 0, 18)
+		label.Font = Enum.Font.Gotham
+		label.TextSize = 16
+		label.TextColor3 = Color3.fromRGB(200, 220, 200)
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.LayoutOrder = i
+		label.Text = string.format("%s donated %s Robux", event.DonorName, NumberFormatter.FormatRobux(event.Amount))
+		label.Parent = boardRecentFrame
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Public hooks
 --------------------------------------------------------------------------------
+
+-- Phase 6: DonationFeedSystem calls this after each append so the stand strip tracks
+-- the live feed. Cheap and idempotent.
+function GlobalDonationStandSystem.OnDonationFeedUpdated()
+	local ok, err = pcall(renderRecentStrip)
+	if not ok then
+		Logger.Warn("Donation", string.format("Recent strip render failed: %s", tostring(err)))
+	end
+end
 
 -- Called by DonationLeaderboard after every refresh: re-render the world board and
 -- push fresh per-player snapshots to online clients.
@@ -354,6 +429,7 @@ function GlobalDonationStandSystem.Start()
 	end
 
 	renderBoard()
+	renderRecentStrip()
 end
 
 return GlobalDonationStandSystem

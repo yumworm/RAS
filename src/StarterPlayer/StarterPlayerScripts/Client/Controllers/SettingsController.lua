@@ -24,6 +24,19 @@ local localSettings = {
 	masterEnabled = GameSettingsConfig.Audio.DefaultMasterOn,
 	musicEnabled = GameSettingsConfig.Audio.DefaultMusicOn,
 	sfxEnabled = GameSettingsConfig.Audio.DefaultSFXOn,
+	-- Phase 6 visibility preferences (hide UI only; the server still records the feed).
+	showDonationFeed = true,
+	showReturnSummary = true,
+}
+
+-- The persisted keys this panel owns (audio + Phase 6 visibility). Both commit() and
+-- the server-echo reconcile iterate this list so a new toggle is added in one place.
+local MANAGED_KEYS = {
+	"masterEnabled",
+	"musicEnabled",
+	"sfxEnabled",
+	"showDonationFeed",
+	"showReturnSummary",
 }
 
 local panel: Frame? = nil
@@ -57,11 +70,11 @@ end
 -- the saved state stale.
 local function commit()
 	AudioController.ApplySettings(localSettings)
-	RequestUpdateSettings:FireServer({
-		masterEnabled = localSettings.masterEnabled,
-		musicEnabled = localSettings.musicEnabled,
-		sfxEnabled = localSettings.sfxEnabled,
-	})
+	local payload = {}
+	for _, key in ipairs(MANAGED_KEYS) do
+		payload[key] = localSettings[key]
+	end
+	RequestUpdateSettings:FireServer(payload)
 end
 
 local function onToggle(key: string)
@@ -172,11 +185,15 @@ local function build(parent: ScreenGui)
 	title.ZIndex = 11
 	title.Parent = frame
 
-	local rows = Instance.new("Frame")
+	local rows = Instance.new("ScrollingFrame")
 	rows.Name = "Rows"
 	rows.BackgroundTransparency = 1
+	rows.BorderSizePixel = 0
 	rows.Position = UDim2.fromOffset(12, 46)
 	rows.Size = UDim2.new(1, -24, 1, -110)
+	rows.ScrollBarThickness = 6
+	rows.CanvasSize = UDim2.new(0, 0, 0, 0)
+	rows.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	rows.ZIndex = 11
 	rows.Parent = frame
 	local layout = Instance.new("UIListLayout")
@@ -187,6 +204,8 @@ local function build(parent: ScreenGui)
 	makeToggleRow(rows, "masterEnabled", Text.MasterLabel, 1)
 	makeToggleRow(rows, "musicEnabled", Text.MusicLabel, 2)
 	makeToggleRow(rows, "sfxEnabled", Text.SFXLabel, 3)
+	makeToggleRow(rows, "showDonationFeed", Text.DonationFeedLabel, 4)
+	makeToggleRow(rows, "showReturnSummary", Text.ReturnSummaryLabel, 5)
 
 	local close = Instance.new("TextButton")
 	close.Name = "Close"
@@ -223,7 +242,7 @@ local function applyServerSettings(settings)
 	if type(settings) ~= "table" then
 		return
 	end
-	for _, key in ipairs({ "masterEnabled", "musicEnabled", "sfxEnabled" }) do
+	for _, key in ipairs(MANAGED_KEYS) do
 		if type(settings[key]) == "boolean" then
 			localSettings[key] = settings[key]
 		end

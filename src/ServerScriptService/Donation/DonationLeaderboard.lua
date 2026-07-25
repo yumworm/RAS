@@ -198,6 +198,29 @@ function DonationLeaderboard.GetSnapshotForPlayer(userId: number)
 	return snapshot
 end
 
+-- Global donor rank for a userId, resolved from the cached Top-N ONLY (no store
+-- scan). Returns nil for anyone outside the cached board. Used by the profile card.
+function DonationLeaderboard.GetRankFor(userId: number): number?
+	return rankByUserId[userId]
+end
+
+-- Cached public donor snapshot for a userId (name, donated, rank) drawn purely from
+-- the in-memory board -- no DataStore read, no profile load. Returns nil when the
+-- user is not in the cached Top-N. This is what backs an OFFLINE player's minimal
+-- public profile card opened from a leaderboard row.
+function DonationLeaderboard.GetCachedDonor(userId: number)
+	local rank = rankByUserId[userId]
+	if not rank then
+		return nil
+	end
+	for _, entry in ipairs(cache.Entries) do
+		if entry.UserId == userId then
+			return { Username = entry.Username, RobuxDonated = entry.RobuxDonated, Rank = entry.Rank }
+		end
+	end
+	return nil
+end
+
 -- Pull the next scheduled refresh forward (e.g. right after a confirmed donation) so
 -- the board updates faster than the fixed interval without spamming the store.
 function DonationLeaderboard.MarkDirty()

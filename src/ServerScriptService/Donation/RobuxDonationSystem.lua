@@ -265,6 +265,14 @@ local function processReceipt(receiptInfo)
 		if Services.AnalyticsMonitorSystem then
 			Services.AnalyticsMonitorSystem.LogDonationGranted(userId, amount)
 		end
+		-- Phase 6: append to the live global feed EXACTLY here -- inside the first-time
+		-- `applied` branch, after the durable credit. A duplicate receipt lands in the
+		-- `else` branch below and never reaches this line, so it can never rebroadcast.
+		-- The feed is a donation-to-the-game record: donor display name only, no receiver.
+		if Services.DonationFeedSystem then
+			local donorName = Services.DonationFeedSystem.ResolveDonorName(userId)
+			Services.DonationFeedSystem.Append(donorName, amount, os.time())
+		end
 		local player = Players:GetPlayerByUserId(userId)
 		if player then
 			local runtime = Runtime.Get(userId)
