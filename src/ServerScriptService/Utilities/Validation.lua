@@ -150,7 +150,10 @@ local function validateDonationConfig(errors)
 			table.insert(errors, string.format("DonationConfig amount %s must be a positive integer", tostring(amount)))
 		end
 		if DonationConfig.ProductIds[amount] == nil then
-			table.insert(errors, string.format("DonationConfig.ProductIds is missing an entry for amount %s", tostring(amount)))
+			table.insert(
+				errors,
+				string.format("DonationConfig.ProductIds is missing an entry for amount %s", tostring(amount))
+			)
 		end
 	end
 
@@ -317,12 +320,15 @@ local function validateSettingsConfig(errors, warnings)
 			if type(v) ~= "number" or v < 0 or v > 1 then
 				table.insert(
 					warnings,
-					string.format("GameSettingsConfig.Audio.%s should be within 0-1; it will be clamped at apply time", field)
+					string.format(
+						"GameSettingsConfig.Audio.%s should be within 0-1; it will be clamped at apply time",
+						field
+					)
 				)
 			end
 		end
 		if type(audio.BgmSoundId) ~= "string" then
-			table.insert(errors, "GameSettingsConfig.Audio.BgmSoundId must be a string (\"\" is allowed for no BGM)")
+			table.insert(errors, 'GameSettingsConfig.Audio.BgmSoundId must be a string ("" is allowed for no BGM)')
 		end
 	else
 		table.insert(errors, "GameSettingsConfig.Audio is missing")
@@ -350,10 +356,17 @@ local function validateLiveContentConfig(errors, warnings)
 		-- The row template must be a donation-to-the-game line: donor + amount tokens,
 		-- never a receiver token (there is no player-to-player donation in this game).
 		local template = feed.RowTemplate
-		if type(template) ~= "string" or not string.find(template, "{donor}", 1, true) or not string.find(template, "{amount}", 1, true) then
+		if
+			type(template) ~= "string"
+			or not string.find(template, "{donor}", 1, true)
+			or not string.find(template, "{amount}", 1, true)
+		then
 			table.insert(errors, "LiveContentConfig.DonationFeed.RowTemplate must contain {donor} and {amount}")
 		elseif string.find(template, "{receiver}", 1, true) then
-			table.insert(errors, "LiveContentConfig.DonationFeed.RowTemplate must not contain a {receiver} token (donations are to the game)")
+			table.insert(
+				errors,
+				"LiveContentConfig.DonationFeed.RowTemplate must not contain a {receiver} token (donations are to the game)"
+			)
 		end
 	end
 
@@ -364,7 +377,10 @@ local function validateLiveContentConfig(errors, warnings)
 	else
 		for key, value in pairs(flags) do
 			if type(value) ~= "boolean" then
-				table.insert(errors, string.format("LiveContentConfig.FeatureFlags.%s must be a boolean", tostring(key)))
+				table.insert(
+					errors,
+					string.format("LiveContentConfig.FeatureFlags.%s must be a boolean", tostring(key))
+				)
 			end
 		end
 	end
@@ -379,7 +395,7 @@ local function validateLiveContentConfig(errors, warnings)
 		end
 		local name = featured.StreamerName
 		if type(name) ~= "string" then
-			table.insert(errors, "LiveContentConfig.Featured.StreamerName must be a string (\"\" = none)")
+			table.insert(errors, 'LiveContentConfig.Featured.StreamerName must be a string ("" = none)')
 		elseif name ~= "" and not StreamerDatabase.GetByName(name) then
 			table.insert(
 				warnings,

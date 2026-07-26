@@ -264,8 +264,19 @@ local function render(card)
 		if card.NotInServer then
 			setRow("note", nextOrder(), Text.PlayerNotInServer, "")
 		end
-		setRow("donated", nextOrder(), "Robux Donated", NumberFormatter.FormatRobux(card.RobuxDonatedLifetime or 0), Color3.fromRGB(120, 255, 140))
-		setRow("rank", nextOrder(), "Donor Rank", card.GlobalDonorRank and ("#" .. card.GlobalDonorRank) or Text.Unranked)
+		setRow(
+			"donated",
+			nextOrder(),
+			"Robux Donated",
+			NumberFormatter.FormatRobux(card.RobuxDonatedLifetime or 0),
+			Color3.fromRGB(120, 255, 140)
+		)
+		setRow(
+			"rank",
+			nextOrder(),
+			"Donor Rank",
+			card.GlobalDonorRank and ("#" .. card.GlobalDonorRank) or Text.Unranked
+		)
 		return
 	end
 
@@ -274,15 +285,38 @@ local function render(card)
 		"collection",
 		nextOrder(),
 		"Collection",
-		string.format("%d / %d (%d%%)", card.CollectionCollected or 0, card.CollectionTotal or 0, math.floor(card.CollectionPercent or 0))
+		string.format(
+			"%d / %d (%d%%)",
+			card.CollectionCollected or 0,
+			card.CollectionTotal or 0,
+			math.floor(card.CollectionPercent or 0)
+		)
 	)
 	setRow("spins", nextOrder(), "Total Spins", tostring(card.TotalSpins or 0))
 	if card.CurrentIncome ~= nil then
-		setRow("income", nextOrder(), "Income / sec", NumberFormatter.Format(card.CurrentIncome) .. "/sec", Color3.fromRGB(150, 220, 160))
+		setRow(
+			"income",
+			nextOrder(),
+			"Income / sec",
+			NumberFormatter.Format(card.CurrentIncome) .. "/sec",
+			Color3.fromRGB(150, 220, 160)
+		)
 	end
-	setRow("donated", nextOrder(), "Robux Donated", NumberFormatter.FormatRobux(card.RobuxDonatedLifetime or 0), Color3.fromRGB(120, 255, 140))
+	setRow(
+		"donated",
+		nextOrder(),
+		"Robux Donated",
+		NumberFormatter.FormatRobux(card.RobuxDonatedLifetime or 0),
+		Color3.fromRGB(120, 255, 140)
+	)
 	setRow("purchases", nextOrder(), "Donations", tostring(card.DonationPurchaseCount or 0))
-	setRow("biggest", nextOrder(), "Biggest Donation", NumberFormatter.FormatRobux(card.BiggestRobuxDonation or 0), Color3.fromRGB(120, 255, 140))
+	setRow(
+		"biggest",
+		nextOrder(),
+		"Biggest Donation",
+		NumberFormatter.FormatRobux(card.BiggestRobuxDonation or 0),
+		Color3.fromRGB(120, 255, 140)
+	)
 	if card.GlobalDonorRank then
 		setRow("rank", nextOrder(), "Donor Rank", "#" .. card.GlobalDonorRank)
 	end

@@ -1,0 +1,9 @@
+# selene lint config for the Roblox/Luau codebase. Uses the built-in roblox
+# standard library so Roblox globals (game, task, Enum, ...) are recognised.
+std = "roblox"
+
+[rules]
+# The codebase intentionally uses `_` prefixed placeholders and shadowing in a
+# few spots; keep the defaults strict otherwise.
+unused_variable = "warn"
+shadowing = "warn"

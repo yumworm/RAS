@@ -169,7 +169,8 @@ local function build(parent: ScreenGui)
 	frameCorner.Parent = frame
 	-- Never exceed a small viewport; keeps the panel fully on-screen on phones.
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MaxSize = Vector2.new(GameSettingsConfig.UI.SettingsPanelSize.X.Offset, GameSettingsConfig.UI.SettingsPanelSize.Y.Offset)
+	sizeConstraint.MaxSize =
+		Vector2.new(GameSettingsConfig.UI.SettingsPanelSize.X.Offset, GameSettingsConfig.UI.SettingsPanelSize.Y.Offset)
 	sizeConstraint.MinSize = Vector2.new(260, 220)
 	sizeConstraint.Parent = frame
 

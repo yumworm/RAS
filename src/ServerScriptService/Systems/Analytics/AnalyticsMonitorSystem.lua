@@ -83,7 +83,12 @@ local function checkEconomyCap(userId: number)
 			counters.cap_warnings += 1
 			Logger.Warn(
 				"Analytics",
-				string.format("economy_soft_cap userId=%d value=%d cap=%d", userId, math.floor(current), math.floor(Analytics.EconomyCapSoft))
+				string.format(
+					"economy_soft_cap userId=%d value=%d cap=%d",
+					userId,
+					math.floor(current),
+					math.floor(Analytics.EconomyCapSoft)
+				)
 			)
 		end
 		state.above = true
@@ -125,7 +130,10 @@ function AnalyticsMonitorSystem.LogDonationPromptRequested(userId: number, produ
 	if not Analytics.LogDonationFunnel then
 		return
 	end
-	Logger.Info("Analytics", string.format("donation_prompt_requested userId=%d product=%s", userId, tostring(productId)))
+	Logger.Info(
+		"Analytics",
+		string.format("donation_prompt_requested userId=%d product=%s", userId, tostring(productId))
+	)
 end
 
 -- A donation was granted in ProcessReceipt (Phase 3). Log only; never re-grant. This

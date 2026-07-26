@@ -204,7 +204,10 @@ local function updateFeatured(featured)
 		featuredExpiryThread = nil
 	end
 
-	local active = type(featured) == "table" and featured.Enabled == true and type(featured.StreamerName) == "string" and featured.StreamerName ~= ""
+	local active = type(featured) == "table"
+		and featured.Enabled == true
+		and type(featured.StreamerName) == "string"
+		and featured.StreamerName ~= ""
 	if active then
 		local endAt = featured.EndTimestamp
 		if type(endAt) == "number" and endAt > 0 and os.time() > endAt then
@@ -220,7 +223,13 @@ local function updateFeatured(featured)
 	end
 
 	featuredName = active and featured.StreamerName or ""
-	featuredBadgeText = (type(featured) == "table" and type(featured.BadgeText) == "string" and featured.BadgeText ~= "") and featured.BadgeText or "Featured"
+	featuredBadgeText = (
+		type(featured) == "table"
+		and type(featured.BadgeText) == "string"
+		and featured.BadgeText ~= ""
+	)
+			and featured.BadgeText
+		or "Featured"
 	applyFeaturedToAll()
 end
 

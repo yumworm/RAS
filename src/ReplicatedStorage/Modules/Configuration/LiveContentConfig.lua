@@ -138,7 +138,8 @@ function LiveContentConfig.ResolveFeatured()
 	return {
 		Enabled = active,
 		StreamerName = active and featured.StreamerName or "",
-		BadgeText = type(featured.BadgeText) == "string" and featured.BadgeText ~= "" and featured.BadgeText or "Featured",
+		BadgeText = type(featured.BadgeText) == "string" and featured.BadgeText ~= "" and featured.BadgeText
+			or "Featured",
 		EndTimestamp = type(featured.EndTimestamp) == "number" and featured.EndTimestamp or 0,
 	}
 end

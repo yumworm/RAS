@@ -231,7 +231,10 @@ local function processReceipt(receiptInfo)
 		-- owner, so an unknown product means a misconfiguration. We grant (rather than
 		-- NotProcessedYet) so Roblox does not retry the same bad receipt forever; no
 		-- donation stat is touched. If another system ever needs receipts, route here.
-		Logger.Warn("Donation", string.format("Receipt for unknown product %s -> granting without credit", tostring(productId)))
+		Logger.Warn(
+			"Donation",
+			string.format("Receipt for unknown product %s -> granting without credit", tostring(productId))
+		)
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 

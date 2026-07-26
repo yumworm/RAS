@@ -82,7 +82,11 @@ function ReturnSummarySystem.BuildPayload(userId: number)
 
 	-- Developer-only telemetry (log-only; the payload grants nothing). Guarded so the
 	-- ClientReady resend of the initial payload does not double-count this return.
-	if not reported[userId] and Services.AnalyticsMonitorSystem and Services.AnalyticsMonitorSystem.LogReturnSummaryShown then
+	if
+		not reported[userId]
+		and Services.AnalyticsMonitorSystem
+		and Services.AnalyticsMonitorSystem.LogReturnSummaryShown
+	then
 		reported[userId] = true
 		Services.AnalyticsMonitorSystem.LogReturnSummaryShown(userId, away)
 	end

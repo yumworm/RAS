@@ -162,16 +162,36 @@ local function show(summary)
 	end
 
 	addRow(nextOrder(), Text.TimeAwayLabel, formatDuration(summary.TimeAwaySec or 0), Color3.fromRGB(255, 225, 140))
-	addRow(nextOrder(), "Income / sec", NumberFormatter.Format(summary.CurrentIncome or 0) .. "/sec", Color3.fromRGB(150, 220, 160))
+	addRow(
+		nextOrder(),
+		"Income / sec",
+		NumberFormatter.Format(summary.CurrentIncome or 0) .. "/sec",
+		Color3.fromRGB(150, 220, 160)
+	)
 	addRow(nextOrder(), "Lifetime Spins", tostring(summary.LifetimeSpins or 0))
 	addRow(
 		nextOrder(),
 		"Collection",
-		string.format("%d / %d (%d%%)", summary.CollectionCollected or 0, summary.CollectionTotal or 0, math.floor(summary.CollectionPercent or 0))
+		string.format(
+			"%d / %d (%d%%)",
+			summary.CollectionCollected or 0,
+			summary.CollectionTotal or 0,
+			math.floor(summary.CollectionPercent or 0)
+		)
 	)
-	addRow(nextOrder(), "Robux Donated", NumberFormatter.FormatRobux(summary.RobuxDonatedLifetime or 0), Color3.fromRGB(120, 255, 140))
+	addRow(
+		nextOrder(),
+		"Robux Donated",
+		NumberFormatter.FormatRobux(summary.RobuxDonatedLifetime or 0),
+		Color3.fromRGB(120, 255, 140)
+	)
 	addRow(nextOrder(), "Donations", tostring(summary.DonationPurchaseCount or 0))
-	addRow(nextOrder(), "Biggest Donation", NumberFormatter.FormatRobux(summary.BiggestRobuxDonation or 0), Color3.fromRGB(120, 255, 140))
+	addRow(
+		nextOrder(),
+		"Biggest Donation",
+		NumberFormatter.FormatRobux(summary.BiggestRobuxDonation or 0),
+		Color3.fromRGB(120, 255, 140)
+	)
 	if summary.BestPullName then
 		local color = Color3.fromRGB(235, 235, 240)
 		if summary.BestPullRarity and RarityConfig.IsValidTier(summary.BestPullRarity) then

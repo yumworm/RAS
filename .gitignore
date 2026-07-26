@@ -1,3 +1,10 @@
+# Built places and lockfiles
 *.rbxl
 *.rbxlx
+
+# Generated tooling artifacts (recreated by rojo / luau-lsp on demand)
 sourcemap.json
+globalTypes.d.luau
+
+# Rokit-managed tool binaries
+.rokit/

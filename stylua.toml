@@ -1,0 +1,9 @@
+# stylua formatting config. Matches the existing codebase style: tab indentation,
+# 120-column target, double-quoted strings. CI runs `stylua --check src` as a gate.
+column_width = 120
+line_endings = "Unix"
+indent_type = "Tabs"
+indent_width = 4
+quote_style = "AutoPreferDouble"
+call_parentheses = "Always"
+collapse_simple_statement = "Never"

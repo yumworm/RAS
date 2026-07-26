@@ -222,7 +222,12 @@ local function render()
 		"collection",
 		n(),
 		"Collection",
-		string.format("%d / %d (%d%%)", collection.collected or 0, collection.total or 0, math.floor(collection.percentage or 0))
+		string.format(
+			"%d / %d (%d%%)",
+			collection.collected or 0,
+			collection.total or 0,
+			math.floor(collection.percentage or 0)
+		)
 	)
 	setRow("duplicates", n(), "Duplicates", tostring(collection.duplicates or 0))
 
@@ -239,7 +244,13 @@ local function render()
 
 	setRow("donated", n(), "Robux Donated", NumberFormatter.FormatRobux(donation.robuxDonatedLifetime or 0), robuxColor)
 	setRow("donations", n(), "Donations", tostring(donation.donationPurchaseCount or 0))
-	setRow("biggest", n(), "Biggest Donation", NumberFormatter.FormatRobux(donation.biggestRobuxDonation or 0), robuxColor)
+	setRow(
+		"biggest",
+		n(),
+		"Biggest Donation",
+		NumberFormatter.FormatRobux(donation.biggestRobuxDonation or 0),
+		robuxColor
+	)
 	setRow("playtime", n(), "Play Time", formatDuration(stats.totalPlayTime or 0))
 end
 

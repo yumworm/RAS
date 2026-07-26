@@ -328,7 +328,8 @@ local function renderBoard()
 	if boardUpdatedLabel then
 		local suffix = snapshot.Stale and (" " .. DonationConfig.Text.StaleSuffix) or ""
 		if snapshot.GeneratedAt > 0 then
-			boardUpdatedLabel.Text = string.format("Last updated: %s%s", os.date("!%H:%M:%S UTC", snapshot.GeneratedAt), suffix)
+			boardUpdatedLabel.Text =
+				string.format("Last updated: %s%s", os.date("!%H:%M:%S UTC", snapshot.GeneratedAt), suffix)
 		else
 			boardUpdatedLabel.Text = "Last updated: never" .. suffix
 		end

@@ -329,12 +329,18 @@ function DonationController.OnNotification(payload)
 		AudioController.PlaySFX(DonationConfig.Effects.SuccessSoundId, { Volume = 0.6 })
 		if panel and panel.Visible then
 			TweenService:Create(panel, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Size = UDim2.fromOffset(DonationConfig.UI.DonationPanelSize.X + 14, DonationConfig.UI.DonationPanelSize.Y + 14),
+				Size = UDim2.fromOffset(
+					DonationConfig.UI.DonationPanelSize.X + 14,
+					DonationConfig.UI.DonationPanelSize.Y + 14
+				),
 			}):Play()
 			task.delay(0.18, function()
 				if panel then
 					TweenService:Create(panel, TweenInfo.new(0.12), {
-						Size = UDim2.fromOffset(DonationConfig.UI.DonationPanelSize.X, DonationConfig.UI.DonationPanelSize.Y),
+						Size = UDim2.fromOffset(
+							DonationConfig.UI.DonationPanelSize.X,
+							DonationConfig.UI.DonationPanelSize.Y
+						),
 					}):Play()
 				end
 			end)

@@ -150,3 +150,30 @@ rojo build -o RollAStream.rbxlx
 ```
 
 then open `RollAStream.rbxlx` in Studio.
+
+## Tooling and CI
+
+Tool versions are pinned in [`rokit.toml`](./rokit.toml). With
+[Rokit](https://github.com/rojo-rbx/rokit) installed, `rokit install` puts matching
+`rojo`, `stylua`, `selene`, and `luau-lsp` on your PATH.
+
+Local checks (the same ones CI runs):
+
+```
+stylua --check src                              # formatting (blocking gate)
+rojo build default.project.json -o build.rbxl   # compile (blocking gate)
+```
+
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every push to
+`main` and every pull request. The **format** and **build** steps are blocking
+gates; the **type check** (`luau-lsp analyze`) and **selene** lint run as advisory
+(non-blocking) reports while the strict-mode findings are burned down. Config for
+each tool lives in `stylua.toml`, `selene.toml`, and `.luaurc`.
+
+## Publishing
+
+See [`PUBLISHING.md`](./PUBLISHING.md) for the full go-live checklist: Studio API
+settings, creating the eight donation Developer Products and pasting their ids into
+`DonationConfig`, optional presentation asset ids, feature-flag review, the Studio
+test matrix, and the publish steps. Developer logging defaults to on in Studio and
+off in live servers.
