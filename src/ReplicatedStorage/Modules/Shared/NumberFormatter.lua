@@ -42,8 +42,7 @@ end
 -- RobuxDonatedLifetime is an uncapped flex stat that may legitimately climb past T
 -- (Qa, Qi, Sx, ...). Startup validation asserts Suffixes stays K/M/B/T; it does not
 -- constrain this list, so extending the two never collides.
-NumberFormatter.RobuxSuffixes =
-	{ "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "UDc", "DDc" }
+NumberFormatter.RobuxSuffixes = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "UDc", "DDc" }
 
 -- Format a Robux-donated total. Never clamps to the Bucks economy cap and never
 -- routes through Format() (which would flatten anything above T into "T"). Used for

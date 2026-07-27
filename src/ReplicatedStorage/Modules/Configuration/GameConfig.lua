@@ -3,6 +3,8 @@
 -- Rule of thumb: if a number affects balance or behaviour, it lives here, not
 -- inline in a service. Balancing the game should never require hunting through
 -- dozens of files.
+local RunService = game:GetService("RunService")
+
 local GameConfig = {}
 
 -- Identity
@@ -60,7 +62,10 @@ GameConfig.UpgradeScaling = {
 	IncomePerLevel = 0.10, -- +10% per level, applied by a future system
 }
 
--- Developer logging toggle (server-side only, never shown to players).
-GameConfig.LoggingEnabled = true
+-- Developer logging toggle (never shown to players). Production default: on in
+-- Studio, off in live/published servers so shipped games do not spam the console
+-- or pay the cost of formatting log lines. To force logs on in a live server (for
+-- a one-off investigation) set this to an explicit `true`.
+GameConfig.LoggingEnabled = RunService:IsStudio()
 
 return GameConfig

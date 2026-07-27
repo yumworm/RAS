@@ -11,9 +11,14 @@ local TweenService = game:GetService("TweenService")
 
 local DonationConfig = require(ReplicatedStorage.Modules.Configuration.DonationConfig)
 local NumberFormatter = require(ReplicatedStorage.Modules.Shared.NumberFormatter)
+local AudioController = require(script.Parent.AudioController)
+local UIFit = require(script.Parent.Parent.UI.UIFit)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local RequestDonationPrompt = Remotes:WaitForChild("RequestDonationPrompt")
+-- Developer-only funnel signal: fired when this panel opens. It carries no gameplay
+-- authority; the server rate-limits and logs it (see AnalyticsMonitorSystem).
+local AnalyticsDonationPanelOpened = Remotes:WaitForChild("AnalyticsDonationPanelOpened")
 
 local player = Players.LocalPlayer
 
@@ -117,6 +122,9 @@ local function build(parent: ScreenGui)
 	local sizeConstraint = Instance.new("UISizeConstraint")
 	sizeConstraint.MaxSize = DonationConfig.UI.DonationPanelSize
 	sizeConstraint.Parent = panel
+	-- Uniformly scale the whole panel down to fit small/phone viewports (never up past
+	-- 1), so this fixed-layout panel stays fully on-screen without reworking children.
+	UIFit.Fit(panel, DonationConfig.UI.DonationPanelSize.X, DonationConfig.UI.DonationPanelSize.Y)
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
@@ -254,6 +262,8 @@ function DonationController.Open()
 	end
 	renderPersonal(StateController and StateController.state)
 	panel.Visible = true
+	-- Top of the donation funnel (developer analytics only). Server rate-limits it.
+	AnalyticsDonationPanelOpened:FireServer()
 end
 
 function DonationController.Close()
@@ -313,14 +323,24 @@ function DonationController.OnNotification(payload)
 	setPending(false)
 	if payload.Kind == "Success" then
 		flashStatus(payload.Message or "Thank you!", Color3.fromRGB(120, 255, 140))
+		-- Success chime through the audio bus so it obeys the SFX / Master toggles.
+		-- SuccessSoundId is empty by default, so this is a clean no-op until a human
+		-- pastes a real asset id into DonationConfig.Effects.SuccessSoundId.
+		AudioController.PlaySFX(DonationConfig.Effects.SuccessSoundId, { Volume = 0.6 })
 		if panel and panel.Visible then
 			TweenService:Create(panel, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Size = UDim2.fromOffset(DonationConfig.UI.DonationPanelSize.X + 14, DonationConfig.UI.DonationPanelSize.Y + 14),
+				Size = UDim2.fromOffset(
+					DonationConfig.UI.DonationPanelSize.X + 14,
+					DonationConfig.UI.DonationPanelSize.Y + 14
+				),
 			}):Play()
 			task.delay(0.18, function()
 				if panel then
 					TweenService:Create(panel, TweenInfo.new(0.12), {
-						Size = UDim2.fromOffset(DonationConfig.UI.DonationPanelSize.X, DonationConfig.UI.DonationPanelSize.Y),
+						Size = UDim2.fromOffset(
+							DonationConfig.UI.DonationPanelSize.X,
+							DonationConfig.UI.DonationPanelSize.Y
+						),
 					}):Play()
 				end
 			end)

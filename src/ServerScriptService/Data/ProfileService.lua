@@ -183,6 +183,11 @@ function ProfileService.ValidateAndRepair(rawData)
 	local profile = TableUtil.Reconcile(rawData, ProfileTemplate.Default())
 
 	profile.schemaVersion = ProfileTemplate.CURRENT_VERSION
+	-- lastLogout (Phase 6): a unix second stamp. Clamp to [0, now] so a corrupt,
+	-- negative, NaN, inf, or future value can never produce a bogus "time away"
+	-- (a future logout would yield negative away time). A capped value just means the
+	-- welcome-back panel is skipped, never that inventory/currency is touched.
+	profile.lastLogout = sanitizeInt(profile.lastLogout, 0, 0, now)
 	repairEconomy(profile.economy)
 	repairStats(profile.stats)
 	repairDonation(profile.donation, rawDonation)

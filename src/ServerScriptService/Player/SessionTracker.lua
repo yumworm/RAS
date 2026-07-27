@@ -4,6 +4,7 @@
 -- in Runtime so it's never saved.
 local Server = script.Parent.Parent
 local Runtime = require(Server.Core.Runtime)
+local StateSync = require(Server.Core.StateSync)
 
 local SessionTracker = {}
 local Services: any
@@ -69,6 +70,11 @@ function SessionTracker.Tick(userId: number, dt: number)
 	if runtime.incomePerSecond > session.highestIncome then
 		session.highestIncome = runtime.incomePerSecond
 	end
+
+	-- Phase 6: replicate the live session summary so the Stats panel shows current
+	-- session spins / earnings / playtime. Piggybacks on the once-per-tick FlushState
+	-- the income loop already performs, so it adds no extra network round trip.
+	StateSync.Mark(userId, "session", SessionTracker.GetSummary(userId))
 end
 
 function SessionTracker.GetSummary(userId: number)

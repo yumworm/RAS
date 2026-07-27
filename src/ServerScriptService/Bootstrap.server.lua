@@ -55,6 +55,10 @@ Services.DonationLeaderboard = require(Donation.DonationLeaderboard)
 Services.RobuxDonationSystem = require(Donation.RobuxDonationSystem)
 Services.GlobalDonationStandSystem = require(Donation.GlobalDonationStandSystem)
 Services.AnalyticsMonitorSystem = require(Systems.Analytics.AnalyticsMonitorSystem)
+-- Phase 6 social / retention layer.
+Services.DonationFeedSystem = require(Systems.Social.DonationFeedSystem)
+Services.ProfileCardSystem = require(Systems.Social.ProfileCardSystem)
+Services.ReturnSummarySystem = require(Systems.Player.ReturnSummarySystem)
 
 -- 3) Initialize (they wire dependencies via the registry, at call time).
 for _, name in ipairs({
@@ -70,6 +74,9 @@ for _, name in ipairs({
 	"RobuxDonationSystem",
 	"GlobalDonationStandSystem",
 	"AnalyticsMonitorSystem",
+	"DonationFeedSystem",
+	"ProfileCardSystem",
+	"ReturnSummarySystem",
 }) do
 	local service = Services[name]
 	if service.Init then
@@ -84,6 +91,9 @@ Services.NetworkService.Start()
 Services.PlayerManager.Start()
 -- Developer-only observability (economy soft-cap + donation funnel + snapshots).
 Services.AnalyticsMonitorSystem.Start()
+-- Phase 6: connect the profile-card request remote (feed + return summary are event
+-- driven off the donation/join paths, so they need no Start of their own).
+Services.ProfileCardSystem.Start()
 
 -- 5) Donation subsystem. The stand is built first so the leaderboard's refresh loop
 -- always has a board to render into; the receipt/prompt handler and board loop start
@@ -91,5 +101,9 @@ Services.AnalyticsMonitorSystem.Start()
 Services.GlobalDonationStandSystem.Start()
 Services.DonationLeaderboard.Start()
 Services.RobuxDonationSystem.Start()
+
+-- 6) Launch-polish lighting. One-shot, idempotent accents on the now-built Global
+-- Donation Stand so it reads clearly and distinct from spawn. No-op if absent.
+require(Systems.Lighting.StandLightingSetup).Apply()
 
 Logger.Info("Boot", "RollAStream server started")

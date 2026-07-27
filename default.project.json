@@ -36,7 +36,12 @@
         "DonationNotification": { "$className": "RemoteEvent" },
         "DonationStandEffect": { "$className": "RemoteEvent" },
         "OpenDonationPanel": { "$className": "RemoteEvent" },
-        "RequestUpdateSettings": { "$className": "RemoteEvent" }
+        "RequestUpdateSettings": { "$className": "RemoteEvent" },
+        "AnalyticsDonationPanelOpened": { "$className": "RemoteEvent" },
+        "RequestProfileCard": { "$className": "RemoteEvent" },
+        "ProfileCardResult": { "$className": "RemoteEvent" },
+        "DonationFeedPush": { "$className": "RemoteEvent" },
+        "AnalyticsUIEvent": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {

@@ -40,6 +40,11 @@ local function onPlayerAdded(player: Player)
 
 		runtime.initialized = true -- gameplay may begin only now
 		Services.NetworkService.SendInitialState(player)
+
+		-- Developer-only retention telemetry (log-only; also detects a zero-spin join).
+		if Services.AnalyticsMonitorSystem then
+			Services.AnalyticsMonitorSystem.LogSessionStarted(userId)
+		end
 	end)
 
 	if not ok then
@@ -57,6 +62,11 @@ local function onPlayerRemoving(player: Player)
 	Logger.Info("Player", string.format("%s (%d) leaving", player.Name, userId))
 
 	Services.SessionTracker.End(userId)
+	-- Phase 6: server-stamp the logout time BEFORE the save so the next session can
+	-- compute time away for the welcome-back summary. Client can never reach this.
+	if Services.ReturnSummarySystem then
+		Services.ReturnSummarySystem.StampLogout(userId)
+	end
 	Services.SaveManager.SaveNow(userId) -- blocking save + retry before we drop data
 
 	Runtime.Destroy(userId) -- disconnects tracked connections
@@ -79,6 +89,11 @@ local function onClose()
 	for _, player in ipairs(players) do
 		task.spawn(function()
 			pcall(function()
+				-- Stamp logout on shutdown too, so a server close is a real "logout" for
+				-- the returning-player summary (still zero economy writes).
+				if Services.ReturnSummarySystem then
+					Services.ReturnSummarySystem.StampLogout(player.UserId)
+				end
 				Services.SaveManager.SaveNow(player.UserId)
 			end)
 			remaining -= 1

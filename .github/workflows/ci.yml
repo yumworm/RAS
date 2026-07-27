@@ -1,0 +1,96 @@
+name: CI
+
+# Verifies every push to main and every pull request. Blocking gates guarantee the
+# place still compiles and stays consistently formatted; the type check and lint run
+# as advisory (non-blocking) reports while the strict-mode findings are burned down.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Tool versions are pinned to match rokit.toml so local dev and CI agree.
+env:
+  ROJO_VERSION: "7.5.1"
+  STYLUA_VERSION: "2.5.2"
+  SELENE_VERSION: "0.28.0"
+  LUAU_LSP_VERSION: "1.32.1"
+
+jobs:
+  check:
+    name: Format, build and analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          set -euo pipefail
+          BIN="$HOME/.local/bin"
+          mkdir -p "$BIN"
+          cd "$(mktemp -d)"
+
+          curl -sSL -o rojo.zip "https://github.com/rojo-rbx/rojo/releases/download/v${ROJO_VERSION}/rojo-${ROJO_VERSION}-linux-x86_64.zip"
+          unzip -o rojo.zip >/dev/null && install -m755 rojo "$BIN/rojo"
+
+          curl -sSL -o stylua.zip "https://github.com/JohnnyMorganz/StyLua/releases/download/v${STYLUA_VERSION}/stylua-linux-x86_64.zip"
+          unzip -o stylua.zip >/dev/null && install -m755 stylua "$BIN/stylua"
+
+          curl -sSL -o selene.zip "https://github.com/Kampfkarren/selene/releases/download/${SELENE_VERSION}/selene-${SELENE_VERSION}-linux.zip"
+          unzip -o selene.zip >/dev/null && install -m755 selene "$BIN/selene"
+
+          curl -sSL -o luau-lsp.zip "https://github.com/JohnnyMorganz/luau-lsp/releases/download/${LUAU_LSP_VERSION}/luau-lsp-linux.zip"
+          unzip -o luau-lsp.zip >/dev/null && install -m755 luau-lsp "$BIN/luau-lsp"
+
+          echo "$BIN" >> "$GITHUB_PATH"
+
+      - name: Tool versions
+        run: |
+          rojo --version
+          stylua --version
+          selene --version
+          luau-lsp --version
+
+      # Blocking gate: consistent formatting.
+      - name: Format check (stylua)
+        run: stylua --check src
+
+      # Blocking gate: the place must still compile from the Rojo project.
+      - name: Build place (rojo)
+        run: rojo build default.project.json -o build.rbxl
+
+      - name: Generate sourcemap
+        run: rojo sourcemap default.project.json -o sourcemap.json
+
+      - name: Fetch Roblox type definitions
+        run: |
+          curl -sSL -o globalTypes.d.luau \
+            "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/${LUAU_LSP_VERSION}/scripts/globalTypes.d.luau"
+
+      # Advisory: strict-mode type findings. Non-blocking while they are burned down
+      # (see PUBLISHING.md). Flip to a blocking gate once the count reaches zero.
+      - name: Type check (advisory)
+        continue-on-error: true
+        run: |
+          luau-lsp analyze \
+            --sourcemap sourcemap.json \
+            --defs globalTypes.d.luau \
+            --base-luaurc .luaurc \
+            --platform roblox \
+            --no-strict-dm-types \
+            src
+
+      # Advisory: selene lint. Non-blocking; downloads the Roblox std on first run.
+      - name: Lint (selene, advisory)
+        continue-on-error: true
+        run: selene src
+
+      - name: Upload built place
+        uses: actions/upload-artifact@v4
+        with:
+          name: RollAStream-place
+          path: build.rbxl
+          if-no-files-found: error

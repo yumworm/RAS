@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Configuration = ReplicatedStorage.Modules.Configuration
 local GameConfig = require(Configuration.GameConfig)
 local GameSettingsConfig = require(Configuration.GameSettingsConfig)
+local LiveContentConfig = require(Configuration.LiveContentConfig)
 local StreamerDatabase = require(Configuration.StreamerDatabase)
 local PresentationConfig = require(Configuration.PresentationConfig)
 
@@ -73,11 +74,32 @@ function NetworkService.SendInitialState(player: Player)
 		},
 		settings = profile.settings,
 		economyCap = GameConfig.EconomyCap,
+		-- Legacy economy stats for the Phase 6 Stats panel. These are the slow-moving
+		-- "highest / lifetime" values; live currency/income still flow via deltas, and
+		-- the panel composes live figures from both (see StatsPanelController).
+		economy = {
+			lifetimeEarned = profile.economy.lifetimeEarned,
+			lifetimeSpent = profile.economy.lifetimeSpent,
+			highestCurrency = profile.economy.highestCurrency,
+			highestIncome = profile.economy.highestIncome,
+			highestSingleReward = profile.economy.highestSingleReward,
+			largestPurchase = profile.economy.largestPurchase,
+		},
 		donation = {
 			robuxDonatedLifetime = profile.donation.robuxDonatedLifetime,
 			donationPurchaseCount = profile.donation.donationPurchaseCount,
 			biggestRobuxDonation = profile.donation.biggestRobuxDonation,
 		},
+
+		-- Phase 6 retention layer. All read-only: feature flags gate client UI, Featured
+		-- is a cosmetic badge, the feed is a social-proof list, and returnSummary (or nil)
+		-- drives the welcome-back panel. None of these grant or authorize anything.
+		featureFlags = LiveContentConfig.FeatureFlags,
+		featured = LiveContentConfig.ResolveFeatured(),
+		donationFeed = (LiveContentConfig.DonationFeed.SnapshotOnJoin and Services.DonationFeedSystem)
+				and Services.DonationFeedSystem.GetSnapshot()
+			or { entries = {} },
+		returnSummary = Services.ReturnSummarySystem and Services.ReturnSummarySystem.BuildPayload(userId) or nil,
 	})
 end
 

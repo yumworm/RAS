@@ -12,13 +12,18 @@ shared Global Donation Stand: donate real Robux via secure, idempotent
 backed by an OrderedDataStore; a support path only, granting zero Streamer Bucks
 and never touching the capped Bucks economy), Phase 4 (the Two-Tier Presentation
 System: instant Standard reveals for Common through Legendary, cinematic Flagship
-reveals for Mythic and Secret), and Phase 5 (the 1.0 launch-polish wrapper:
+reveals for Mythic and Secret), Phase 5 (the 1.0 launch-polish wrapper:
 frictionless first-time experience, a settings menu with a central audio bus,
-cross-device UI scaling, and developer-only economy / funnel analytics).
-Gameplay and odds are unchanged; presentation never touches income, and Phase 5
-adds no new mechanics, currencies, or monetization. Phase 5's donation-aware
-seams (funnel logging, a donation-sound hook on the audio bus, donation /
-leaderboard scaling, stand lighting) wire directly into the Phase 3 stand.
+cross-device UI scaling, and developer-only economy / funnel analytics), and
+Phase 6 (a post-1.0 retention and social-presence layer: a facts-only welcome-back
+summary with ZERO offline income, server-authored profile cards, a live global feed
+of donations to the game, a legacy stats panel, config-driven feature flags and a
+cosmetic Featured Streamer badge, and expanded telemetry). Gameplay and odds are
+unchanged; presentation never touches income, and Phases 5 and 6 add no new
+mechanics, currencies, streamers, or monetization. Phase 6's social seams (feed
+append on the durable donation grant, an optional stand "Recent supporters" strip,
+profile cards fed by the leaderboard cache) wire directly into the Phase 3 stand,
+and it never introduces booths, receivers, or player-to-player donations.
 
 ## Project layout
 
@@ -29,6 +34,7 @@ src/
     Configuration/
       GameConfig.lua        All balancing values (autosave, cooldown, $10T cap, multipliers)
       GameSettingsConfig.lua  Phase 5 polish tuning: FTUE copy, audio bus defaults, analytics thresholds, UI sizes
+      LiveContentConfig.lua   Phase 6 retention tuning: feature flags, Featured badge, feed/summary/card config, copy
       RarityConfig.lua      7 tiers: color, income scaling, sort priority, reveal presets
       PresentationConfig.lua  Two-Tier reveal routing: Flagship vs Standard, chimes, timeouts
       StreamerDatabase.lua  25 streamers + derived rarity/income/weight/presentation_type
@@ -49,23 +55,31 @@ src/
     Donation/     RobuxDonationSystem (prompts + ProcessReceipt + credit),
                   DonationLeaderboard (OrderedDataStore + Top 100 cache),
                   GlobalDonationStandSystem (the one world stand + board)
-    Systems/      Analytics/AnalyticsMonitorSystem (dev-only economy + funnel logs)
+    Systems/      Analytics/AnalyticsMonitorSystem (dev-only economy + funnel + retention logs),
+                  Lighting/StandLightingSetup (idempotent donation-stand light accents),
+                  Social/DonationFeedSystem (live feed ring buffer + broadcast),
+                  Social/ProfileCardSystem (server-authored read-only cards),
+                  Player/ReturnSummarySystem (LastLogout stamp + welcome-back payload)
   StarterPlayer/StarterPlayerScripts/
     ClientBootstrap.client.lua            Entry point; wires remotes -> controllers
     Client/Controllers/  StateController, SpinController, RevealController,
                          StandardRevealHandler, FlagshipRevealHandler,
                          DonationController (panel + Donate button),
-                         DonationLeaderboardController (Top 100 panel),
-                         AudioController, SettingsController, FTUEController
-    Client/UI/           HUDController, InventoryController
+                         DonationLeaderboardController (Top 100 panel, rows open cards),
+                         AudioController, SettingsController, FTUEController,
+                         DonationFeedController, ProfileCardController,
+                         ReturnSummaryController, StatsPanelController (Phase 6)
+    Client/UI/           HUDController, InventoryController (Featured badge), UIFit (uniform panel scaling)
 ```
 
 `ReplicatedStorage/Remotes` (`ClientReady`, `SpinRequest`, `SpinResult`,
 `InitialState`, `StateUpdate`, `RequestUpdateSettings`, plus the donation set
 `RequestDonationPrompt`, `DonationPromptResult`, `RequestGlobalDonorLeaderboard`,
 `GlobalDonorLeaderboardUpdated`, `DonationNotification`, `DonationStandEffect`,
-`OpenDonationPanel`) is defined directly in `default.project.json`. Rojo creates
-those `RemoteEvent` instances on sync.
+`OpenDonationPanel`, the developer-only `AnalyticsDonationPanelOpened`, and the
+Phase 6 set `RequestProfileCard`, `ProfileCardResult`, `DonationFeedPush`, and the
+developer-only `AnalyticsUIEvent`) is defined directly in `default.project.json`.
+Rojo creates those `RemoteEvent` instances on sync.
 
 ## Architecture at a glance
 
@@ -90,12 +104,33 @@ those `RemoteEvent` instances on sync.
   Spin button until the first server-confirmed spin. A gear opens a Master /
   Music / SFX settings panel; the server validates and persists those preference
   booleans (and nothing else), and a central client `AudioController` owns the
-  looping BGM and a one-shot SFX bus so every Phase 4 reveal sound obeys the
-  toggles. Server-side `AnalyticsMonitorSystem` logs (developers only) when Bucks
-  cross the ~10T soft cap and exposes a rate-limited donation-funnel API for a
-  future Phase 3. Because this environment cannot run Studio, the phone/tablet
-  layout emulator matrix (Phase 5 Section 12.3) remains a human verification
-  step; the structural scaling (size constraints, min touch targets) is in place.
+  looping BGM and a one-shot SFX bus so every Phase 4 reveal sound (and the Phase 3
+  donation success chime) obeys the toggles. Server-side `AnalyticsMonitorSystem`
+  logs (developers only) when Bucks cross the ~10T soft cap and records the Phase 3
+  donation funnel (panel open -> prompt -> grant), rate-limiting the noisy open
+  event. The Global Donation Stand gets idempotent light accents, the donation and
+  Top 100 panels scale to fit phones via a uniform `UIFit`, and the Settings gear
+  sits in its own top-bar slot beside the Donate / Leaderboard buttons. Because this
+  environment cannot run Studio, the phone/tablet layout emulator matrix (Phase 5
+  Section 12.3) remains a human verification step; the structural scaling (uniform
+  panel fit, size constraints, min touch targets) is in place.
+- **Post-1.0 retention (Phase 6).** A returning player (away past a configurable
+  threshold, and only after the first-session FTUE has run) sees a facts-only
+  welcome-back panel: time away, income, collection, and donor stats. It grants
+  ZERO Bucks, simulates no idle earnings, and income keeps ticking behind it -- the
+  server stamps `LastLogout` only on leave/shutdown and the client can never set it.
+  A top-left Profile button opens a server-authored profile card (own card is full;
+  a Top 100 row opens that player's card, minimal-public from the leaderboard cache
+  when they are offline); a Stats button opens a read-only legacy panel that composes
+  live figures from the replicated economy/session mirror. Each confirmed donation
+  appends to a live global feed (donor display name only, no receiver framing) exactly
+  once on the durable grant, broadcast to every client and optionally mirrored on a
+  stand "Recent supporters" strip. `LiveContentConfig` feature flags can disable any
+  of these cleanly, and a cosmetic Featured Streamer badge (config-only, never touches
+  the RNG) highlights one roster row. `AnalyticsMonitorSystem` gains a retention +
+  funnel snapshot (sessions, zero-spin joins, spins by rarity, cards, feed events,
+  stats opens) alongside the existing economy cap watch. No offline income, dailies,
+  gamepasses, codes, trading, or booths are introduced.
 
 ## Running it in Roblox Studio
 
@@ -115,3 +150,30 @@ rojo build -o RollAStream.rbxlx
 ```
 
 then open `RollAStream.rbxlx` in Studio.
+
+## Tooling and CI
+
+Tool versions are pinned in [`rokit.toml`](./rokit.toml). With
+[Rokit](https://github.com/rojo-rbx/rokit) installed, `rokit install` puts matching
+`rojo`, `stylua`, `selene`, and `luau-lsp` on your PATH.
+
+Local checks (the same ones CI runs):
+
+```
+stylua --check src                              # formatting (blocking gate)
+rojo build default.project.json -o build.rbxl   # compile (blocking gate)
+```
+
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every push to
+`main` and every pull request. The **format** and **build** steps are blocking
+gates; the **type check** (`luau-lsp analyze`) and **selene** lint run as advisory
+(non-blocking) reports while the strict-mode findings are burned down. Config for
+each tool lives in `stylua.toml`, `selene.toml`, and `.luaurc`.
+
+## Publishing
+
+See [`PUBLISHING.md`](./PUBLISHING.md) for the full go-live checklist: Studio API
+settings, creating the eight donation Developer Products and pasting their ids into
+`DonationConfig`, optional presentation asset ids, feature-flag review, the Studio
+test matrix, and the publish steps. Developer logging defaults to on in Studio and
+off in live servers.

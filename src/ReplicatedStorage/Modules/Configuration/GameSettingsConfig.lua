@@ -47,7 +47,9 @@ GameSettingsConfig.Analytics = {
 
 -- UI sizing knobs shared by the settings panel, welcome toast, and touch targets.
 GameSettingsConfig.UI = {
-	SettingsPanelSize = UDim2.fromOffset(320, 260),
+	-- Sized for five toggle rows (audio x3 + Phase 6 feed / return-summary visibility);
+	-- the rows area scrolls so it never clips on a short phone viewport.
+	SettingsPanelSize = UDim2.fromOffset(320, 384),
 	ToastSize = UDim2.fromOffset(420, 60),
 	MinTouchPx = 48, -- primary buttons should be at least this tall/wide on mobile
 }
@@ -67,6 +69,8 @@ GameSettingsConfig.Text = {
 	MasterLabel = "Master Volume",
 	MusicLabel = "Music",
 	SFXLabel = "SFX",
+	DonationFeedLabel = "Donation Feed", -- Phase 6: show/hide the live donation feed
+	ReturnSummaryLabel = "Welcome Back Panel", -- Phase 6: show/hide the return summary
 	Close = "Close",
 	On = "On",
 	Off = "Off",
@@ -74,12 +78,16 @@ GameSettingsConfig.Text = {
 
 -- The canonical default for the persisted Settings subtree. ProfileTemplate reads
 -- this so the audio/FTUE defaults live in exactly one place. Booleans only.
+-- Phase 6 adds two player-facing visibility preferences (feed / return summary);
+-- they hide UI only and never affect what the server records.
 function GameSettingsConfig.DefaultSettings()
 	return {
 		masterEnabled = GameSettingsConfig.Audio.DefaultMasterOn,
 		musicEnabled = GameSettingsConfig.Audio.DefaultMusicOn,
 		sfxEnabled = GameSettingsConfig.Audio.DefaultSFXOn,
 		hasSeenWelcomeToast = false,
+		showDonationFeed = true, -- Phase 6: hide the live donation feed UI (server still records)
+		showReturnSummary = true, -- Phase 6: opt out of the welcome-back panel
 	}
 end
 
@@ -92,6 +100,8 @@ GameSettingsConfig.MutableSettingKeys = {
 	sfxEnabled = "boolean",
 	hasSeenWelcomeToast = "boolean",
 	reducedMotion = "boolean",
+	showDonationFeed = "boolean", -- Phase 6: live donation feed visibility
+	showReturnSummary = "boolean", -- Phase 6: welcome-back panel visibility
 }
 
 -- Minimum seconds between accepted settings updates from one player (anti-spam).

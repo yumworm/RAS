@@ -12,6 +12,11 @@ local InventoryController = {}
 local titleLabel, subtitleLabel, listFrame
 local rowCache = {} -- streamerId -> Frame (reused across renders)
 
+-- Featured Streamer highlight (Phase 6): cosmetic badge only. Never touches rolls.
+local featuredName = "" -- resolved active featured name ("" = none)
+local featuredBadgeText = "Featured"
+local featuredExpiryThread: thread? = nil
+
 local function build(parent: ScreenGui)
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
@@ -150,6 +155,84 @@ local function makeRow(entry)
 	return row
 end
 
+-- Add / hide the small "Featured" badge on each row so it reflects the current
+-- featured streamer. Cosmetic text only (color/weight), no emoji. Badges live on the
+-- row (created lazily) and are simply hidden when the row is not the featured one, so
+-- toggling featured on/off never grows the tree.
+local function applyFeaturedBadge(row: Frame)
+	local nameLabel = row:FindFirstChild("NameLabel") :: TextLabel?
+	local isFeatured = featuredName ~= "" and nameLabel ~= nil and nameLabel.Text == featuredName
+
+	local badge = row:FindFirstChild("FeaturedBadge") :: TextLabel?
+	if not isFeatured then
+		if badge then
+			badge.Visible = false
+		end
+		return
+	end
+	if not badge then
+		badge = Instance.new("TextLabel")
+		badge.Name = "FeaturedBadge"
+		badge.AnchorPoint = Vector2.new(1, 1)
+		badge.Position = UDim2.new(1, -6, 1, -4)
+		badge.Size = UDim2.fromOffset(72, 14)
+		badge.BackgroundColor3 = Color3.fromRGB(255, 205, 80)
+		badge.Font = Enum.Font.GothamBold
+		badge.TextSize = 10
+		badge.TextColor3 = Color3.fromRGB(30, 25, 10)
+		badge.ZIndex = 3
+		local badgeCorner = Instance.new("UICorner")
+		badgeCorner.CornerRadius = UDim.new(0, 5)
+		badgeCorner.Parent = badge
+		badge.Parent = row
+	end
+	badge.Text = featuredBadgeText
+	badge.Visible = true
+end
+
+local function applyFeaturedToAll()
+	for _, row in pairs(rowCache) do
+		applyFeaturedBadge(row)
+	end
+end
+
+-- Resolve the active featured name from the server payload, re-checking expiry so a
+-- mid-session EndTimestamp hides the badge without a rejoin.
+local function updateFeatured(featured)
+	if featuredExpiryThread then
+		task.cancel(featuredExpiryThread)
+		featuredExpiryThread = nil
+	end
+
+	local active = type(featured) == "table"
+		and featured.Enabled == true
+		and type(featured.StreamerName) == "string"
+		and featured.StreamerName ~= ""
+	if active then
+		local endAt = featured.EndTimestamp
+		if type(endAt) == "number" and endAt > 0 and os.time() > endAt then
+			active = false
+		elseif type(endAt) == "number" and endAt > 0 then
+			-- Re-evaluate right when it expires so the badge disappears on its own.
+			local delay = math.max(endAt - os.time(), 0) + 1
+			featuredExpiryThread = task.delay(delay, function()
+				featuredExpiryThread = nil
+				updateFeatured(featured)
+			end)
+		end
+	end
+
+	featuredName = active and featured.StreamerName or ""
+	featuredBadgeText = (
+		type(featured) == "table"
+		and type(featured.BadgeText) == "string"
+		and featured.BadgeText ~= ""
+	)
+			and featured.BadgeText
+		or "Featured"
+	applyFeaturedToAll()
+end
+
 local function renderInventory(inventory)
 	-- inventory is already sorted by the server; LayoutOrder mirrors the order.
 	for order, entry in ipairs(inventory) do
@@ -161,6 +244,7 @@ local function renderInventory(inventory)
 		row.LayoutOrder = order
 		row.IncomeLabel.Text = NumberFormatter.Format(entry.income) .. "/sec"
 		row.CountLabel.Text = "x" .. entry.amount
+		applyFeaturedBadge(row)
 	end
 end
 
@@ -183,10 +267,17 @@ local function onState(state, changed)
 	if changed.collection then
 		renderCollection(state.collection)
 	end
+	if changed.featured then
+		updateFeatured(state.featured)
+	end
 end
 
 function InventoryController.Init(parent: ScreenGui, StateController)
 	build(parent)
+	-- Apply any featured payload that arrived before we subscribed.
+	if StateController.state and StateController.state.featured then
+		updateFeatured(StateController.state.featured)
+	end
 	StateController.Subscribe(onState)
 end
 

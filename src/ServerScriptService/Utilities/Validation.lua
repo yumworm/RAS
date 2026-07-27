@@ -11,6 +11,7 @@ local WorldConfig = require(Configuration.WorldConfig)
 local DonationConfig = require(Configuration.DonationConfig)
 local PresentationConfig = require(Configuration.PresentationConfig)
 local GameSettingsConfig = require(Configuration.GameSettingsConfig)
+local LiveContentConfig = require(Configuration.LiveContentConfig)
 local NumberFormatter = require(ReplicatedStorage.Modules.Shared.NumberFormatter)
 
 local Validation = {}
@@ -149,7 +150,10 @@ local function validateDonationConfig(errors)
 			table.insert(errors, string.format("DonationConfig amount %s must be a positive integer", tostring(amount)))
 		end
 		if DonationConfig.ProductIds[amount] == nil then
-			table.insert(errors, string.format("DonationConfig.ProductIds is missing an entry for amount %s", tostring(amount)))
+			table.insert(
+				errors,
+				string.format("DonationConfig.ProductIds is missing an entry for amount %s", tostring(amount))
+			)
 		end
 	end
 
@@ -316,15 +320,91 @@ local function validateSettingsConfig(errors, warnings)
 			if type(v) ~= "number" or v < 0 or v > 1 then
 				table.insert(
 					warnings,
-					string.format("GameSettingsConfig.Audio.%s should be within 0-1; it will be clamped at apply time", field)
+					string.format(
+						"GameSettingsConfig.Audio.%s should be within 0-1; it will be clamped at apply time",
+						field
+					)
 				)
 			end
 		end
 		if type(audio.BgmSoundId) ~= "string" then
-			table.insert(errors, "GameSettingsConfig.Audio.BgmSoundId must be a string (\"\" is allowed for no BGM)")
+			table.insert(errors, 'GameSettingsConfig.Audio.BgmSoundId must be a string ("" is allowed for no BGM)')
 		end
 	else
 		table.insert(errors, "GameSettingsConfig.Audio is missing")
+	end
+end
+
+-- Phase 6 live-content config. Structural issues that would make retention systems
+-- misbehave are fatal; a bad Featured NAME is only a warning because the resolver
+-- disables the (cosmetic) highlight on its own -- it never blocks gameplay. This is
+-- also where the "invalid Featured name -> log once" requirement is satisfied: the
+-- warning is emitted once at startup by Bootstrap.
+local function validateLiveContentConfig(errors, warnings)
+	local rs = LiveContentConfig.ReturnSummary
+	if type(rs) ~= "table" or type(rs.MinAwaySec) ~= "number" or rs.MinAwaySec <= 0 then
+		table.insert(errors, "LiveContentConfig.ReturnSummary.MinAwaySec must be a number greater than 0")
+	end
+
+	local feed = LiveContentConfig.DonationFeed
+	if type(feed) ~= "table" then
+		table.insert(errors, "LiveContentConfig.DonationFeed is missing")
+	else
+		if type(feed.MaxEntries) ~= "number" or feed.MaxEntries < 1 or feed.MaxEntries > 100 then
+			table.insert(errors, "LiveContentConfig.DonationFeed.MaxEntries must be within 1..100")
+		end
+		-- The row template must be a donation-to-the-game line: donor + amount tokens,
+		-- never a receiver token (there is no player-to-player donation in this game).
+		local template = feed.RowTemplate
+		if
+			type(template) ~= "string"
+			or not string.find(template, "{donor}", 1, true)
+			or not string.find(template, "{amount}", 1, true)
+		then
+			table.insert(errors, "LiveContentConfig.DonationFeed.RowTemplate must contain {donor} and {amount}")
+		elseif string.find(template, "{receiver}", 1, true) then
+			table.insert(
+				errors,
+				"LiveContentConfig.DonationFeed.RowTemplate must not contain a {receiver} token (donations are to the game)"
+			)
+		end
+	end
+
+	-- Feature flags must all be booleans (they gate systems).
+	local flags = LiveContentConfig.FeatureFlags
+	if type(flags) ~= "table" then
+		table.insert(errors, "LiveContentConfig.FeatureFlags is missing")
+	else
+		for key, value in pairs(flags) do
+			if type(value) ~= "boolean" then
+				table.insert(
+					errors,
+					string.format("LiveContentConfig.FeatureFlags.%s must be a boolean", tostring(key))
+				)
+			end
+		end
+	end
+
+	-- Featured: name must be empty or a real roster name; EndTimestamp must be a number.
+	local featured = LiveContentConfig.Featured
+	if type(featured) ~= "table" then
+		table.insert(errors, "LiveContentConfig.Featured is missing")
+	else
+		if type(featured.EndTimestamp) ~= "number" then
+			table.insert(errors, "LiveContentConfig.Featured.EndTimestamp must be a number (0 = no expiry)")
+		end
+		local name = featured.StreamerName
+		if type(name) ~= "string" then
+			table.insert(errors, 'LiveContentConfig.Featured.StreamerName must be a string ("" = none)')
+		elseif name ~= "" and not StreamerDatabase.GetByName(name) then
+			table.insert(
+				warnings,
+				string.format(
+					"LiveContentConfig.Featured.StreamerName %q does not match any streamer; the highlight is disabled",
+					name
+				)
+			)
+		end
 	end
 end
 
@@ -338,6 +418,7 @@ function Validation.ValidateAll()
 	validateDonationConfig(errors)
 	validatePresentation(errors, warnings)
 	validateSettingsConfig(errors, warnings)
+	validateLiveContentConfig(errors, warnings)
 	return errors, warnings
 end
 

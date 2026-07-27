@@ -15,6 +15,11 @@ local DonationLeaderboardController = require(Client.Controllers.DonationLeaderb
 local AudioController = require(Client.Controllers.AudioController)
 local SettingsController = require(Client.Controllers.SettingsController)
 local FTUEController = require(Client.Controllers.FTUEController)
+-- Phase 6 retention layer.
+local DonationFeedController = require(Client.Controllers.DonationFeedController)
+local ProfileCardController = require(Client.Controllers.ProfileCardController)
+local ReturnSummaryController = require(Client.Controllers.ReturnSummaryController)
+local StatsPanelController = require(Client.Controllers.StatsPanelController)
 local HUDController = require(Client.UI.HUDController)
 local InventoryController = require(Client.UI.InventoryController)
 
@@ -45,6 +50,14 @@ Remotes.DonationNotification.OnClientEvent:Connect(function(payload)
 end)
 Remotes.GlobalDonorLeaderboardUpdated.OnClientEvent:Connect(function(payload)
 	DonationLeaderboardController.ApplySnapshot(payload)
+end)
+
+-- Phase 6 retention remotes.
+Remotes.ProfileCardResult.OnClientEvent:Connect(function(payload)
+	ProfileCardController.OnResult(payload)
+end)
+Remotes.DonationFeedPush.OnClientEvent:Connect(function(event)
+	DonationFeedController.OnPush(event)
 end)
 -- Optional celebratory particle at the stand (safe no-op if the stand is absent).
 Remotes.DonationStandEffect.OnClientEvent:Connect(function()
@@ -85,6 +98,16 @@ DonationLeaderboardController.Init(screenGui)
 DonationController.Init(screenGui, StateController, DonationLeaderboardController)
 SettingsController.Init(screenGui, StateController)
 FTUEController.Init(screenGui, StateController, SpinController.GetSpinButton())
+
+-- Phase 6 retention controllers.
+DonationFeedController.Init(screenGui, StateController)
+ProfileCardController.Init(screenGui, StateController)
+ReturnSummaryController.Init(screenGui, StateController)
+StatsPanelController.Init(screenGui, StateController)
+-- Tapping a Top 100 leaderboard row opens that player's profile card.
+DonationLeaderboardController.SetRowClickHandler(function(userId)
+	ProfileCardController.OpenForUser(userId)
+end)
 
 -- Tell the server we're ready to receive state. This closes the race where the
 -- server's init-time snapshot could fire before our handlers were connected.
