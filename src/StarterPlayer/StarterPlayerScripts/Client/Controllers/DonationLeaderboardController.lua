@@ -15,8 +15,6 @@ local UIFit = require(script.Parent.Parent.UI.UIFit)
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local RequestGlobalDonorLeaderboard = Remotes:WaitForChild("RequestGlobalDonorLeaderboard")
 
-local player = Players.LocalPlayer
-
 local DonationLeaderboardController = {}
 
 local panel, rowsFrame, footerTotal, footerRank, refreshLabel

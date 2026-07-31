@@ -8,7 +8,6 @@
 -- is anticipation only; the winning card's presentation is owned by the Standard
 -- (instant) or Flagship (cinematic) handler, chosen from the server's
 -- PresentationType. This module never animates the winning card itself.
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Configuration = ReplicatedStorage.Modules.Configuration
@@ -20,8 +19,6 @@ local RevealController = require(script.Parent.RevealController)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local SpinRequest = Remotes:WaitForChild("SpinRequest")
-
-local player = Players.LocalPlayer
 
 local SpinController = {}
 local StateController: any

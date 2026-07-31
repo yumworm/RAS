@@ -5,7 +5,6 @@
 -- block, and the panel composes accurate live values from both (e.g. lifetime earnings
 -- = snapshot lifetime + this session's earnings). There are no edit buttons, no shop,
 -- and zero local economy simulation.
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Configuration = ReplicatedStorage.Modules.Configuration

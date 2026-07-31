@@ -1,15 +1,12 @@
 --!strict
 -- HUDController: the top bar (currency + income/sec) and floating "+N" popups.
 -- Purely presentational -- it renders whatever StateController holds.
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 local NumberFormatter = require(ReplicatedStorage.Modules.Shared.NumberFormatter)
 local GameConfig = require(ReplicatedStorage.Modules.Configuration.GameConfig)
-
-local player = Players.LocalPlayer
 
 local HUDController = {}
 

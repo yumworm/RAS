@@ -39,7 +39,6 @@ local MANAGED_KEYS = {
 	"showReturnSummary",
 }
 
-local panel: Frame? = nil
 local toggleButtons: { [string]: TextButton } = {}
 
 local ON_COLOR = Color3.fromRGB(70, 170, 90)
@@ -223,8 +222,6 @@ local function build(parent: ScreenGui)
 	local closeCorner = Instance.new("UICorner")
 	closeCorner.CornerRadius = UDim.new(0, 10)
 	closeCorner.Parent = close
-
-	panel = frame
 
 	gear.MouseButton1Click:Connect(function()
 		frame.Visible = not frame.Visible
