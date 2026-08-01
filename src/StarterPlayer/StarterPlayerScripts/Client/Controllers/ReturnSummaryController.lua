@@ -16,7 +16,9 @@ local UIFit = require(script.Parent.Parent.UI.UIFit)
 local ReturnSummaryController = {}
 local StateController: any
 
-local panel, rowsFrame
+-- Built once by `build`; typed concretely so class-specific properties resolve.
+local panel: Frame?
+local rowsFrame: Frame?
 local handled = false -- show at most once per session
 
 local Cfg = LiveContentConfig.ReturnSummary
@@ -84,22 +86,24 @@ local function addRow(order: number, caption: string, valueText: string, color: 
 	valueLabel.Parent = row
 end
 
+-- Built into function-locals and published to the module-level handles at the end;
+-- assignment narrows a function-local but never a module-level one.
 local function build(parent: ScreenGui)
-	panel = Instance.new("Frame")
-	panel.Name = "ReturnSummaryPanel"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UICfg.ReturnSummarySize
-	panel.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
-	panel.BorderSizePixel = 0
-	panel.Visible = false
-	panel.ZIndex = 45
-	panel.Parent = parent
-	styleCorner(panel, 14)
+	local frame = Instance.new("Frame")
+	frame.Name = "ReturnSummaryPanel"
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Position = UDim2.fromScale(0.5, 0.5)
+	frame.Size = UICfg.ReturnSummarySize
+	frame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+	frame.BorderSizePixel = 0
+	frame.Visible = false
+	frame.ZIndex = 45
+	frame.Parent = parent
+	styleCorner(frame, 14)
 	local sizeConstraint = Instance.new("UISizeConstraint")
 	sizeConstraint.MaxSize = Vector2.new(UICfg.ReturnSummarySize.X.Offset, UICfg.ReturnSummarySize.Y.Offset)
-	sizeConstraint.Parent = panel
-	UIFit.Fit(panel, UICfg.ReturnSummarySize.X.Offset, UICfg.ReturnSummarySize.Y.Offset)
+	sizeConstraint.Parent = frame
+	UIFit.Fit(frame, UICfg.ReturnSummarySize.X.Offset, UICfg.ReturnSummarySize.Y.Offset)
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
@@ -110,19 +114,19 @@ local function build(parent: ScreenGui)
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	title.Text = Cfg.PanelTitle
 	title.ZIndex = 46
-	title.Parent = panel
+	title.Parent = frame
 
-	rowsFrame = Instance.new("Frame")
-	rowsFrame.Name = "Rows"
-	rowsFrame.BackgroundTransparency = 1
-	rowsFrame.Position = UDim2.fromOffset(20, 52)
-	rowsFrame.Size = UDim2.new(1, -40, 1, -122)
-	rowsFrame.ZIndex = 46
-	rowsFrame.Parent = panel
+	local rows = Instance.new("Frame")
+	rows.Name = "Rows"
+	rows.BackgroundTransparency = 1
+	rows.Position = UDim2.fromOffset(20, 52)
+	rows.Size = UDim2.new(1, -40, 1, -122)
+	rows.ZIndex = 46
+	rows.Parent = frame
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 2)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = rowsFrame
+	layout.Parent = rows
 
 	local continueButton = Instance.new("TextButton")
 	continueButton.Name = "Continue"
@@ -135,12 +139,14 @@ local function build(parent: ScreenGui)
 	continueButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	continueButton.Text = Cfg.ContinueText
 	continueButton.ZIndex = 46
-	continueButton.Parent = panel
+	continueButton.Parent = frame
 	styleCorner(continueButton, 10)
 	continueButton.MouseButton1Click:Connect(function()
 		-- Continue ONLY closes UI. No currency, no inventory, no grant.
-		panel.Visible = false
+		frame.Visible = false
 	end)
+
+	panel, rowsFrame = frame, rows
 end
 
 --------------------------------------------------------------------------------
@@ -148,10 +154,20 @@ end
 --------------------------------------------------------------------------------
 
 local function show(summary)
-	-- Rebuild the rows (cheap; happens once per session).
-	for _, child in ipairs(rowsFrame:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
+	local frame = panel
+	local rows = rowsFrame
+	if not frame or not rows then
+		return
+	end
+
+	-- Rebuild the rows (cheap; happens once per session). Wrapped in a positive
+	-- block rather than relying on the guard above: refinements survive inside an
+	-- `if`, but are dropped after an early return.
+	if rows then
+		for _, child in ipairs(rows:GetChildren()) do
+			if child:IsA("Frame") then
+				child:Destroy()
+			end
 		end
 	end
 
@@ -200,7 +216,9 @@ local function show(summary)
 		addRow(nextOrder(), "Best Pull", tostring(summary.BestPullName), color)
 	end
 
-	panel.Visible = true
+	if frame then
+		frame.Visible = true
+	end
 end
 
 local function tryShow(state)

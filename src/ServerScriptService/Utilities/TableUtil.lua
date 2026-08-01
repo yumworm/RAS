@@ -2,7 +2,10 @@
 -- TableUtil: small pure helpers for data work (deep copy + schema reconcile).
 local TableUtil = {}
 
-function TableUtil.DeepCopy(original)
+-- Operates on arbitrary runtime shapes (DataStore payloads, config tables), so the
+-- parameter is deliberately `any`: the value's shape is genuinely unknown until it
+-- has been walked. Callers assign the result into their own typed locals.
+function TableUtil.DeepCopy(original: any): any
 	if type(original) ~= "table" then
 		return original
 	end
@@ -20,7 +23,10 @@ end
 --
 -- Dynamic-keyed maps (e.g. the inventory, whose keys are streamer ids) are NOT a
 -- good fit for this -- they are handled explicitly by ProfileService instead.
-function TableUtil.Reconcile(data, template)
+-- `data` is untrusted (straight off a DataStore) so it is `any`; the result is
+-- shaped like `template`, so the return is generic on the template's type and
+-- callers keep full type information instead of an opaque table.
+function TableUtil.Reconcile<T>(data: any, template: T): T
 	local result = TableUtil.DeepCopy(template)
 	if type(data) ~= "table" then
 		return result
@@ -40,7 +46,7 @@ function TableUtil.Reconcile(data, template)
 	return result
 end
 
-function TableUtil.Count(t): number
+function TableUtil.Count(t: any): number
 	local n = 0
 	for _ in pairs(t) do
 		n += 1
