@@ -126,12 +126,12 @@ Run each in Studio (Play Solo and, where noted, Local Server with 2 players).
 - **Strict type-check burn-down.** `luau-lsp analyze` runs **advisory**
   (non-blocking) in CI. These are annotation-level issues that do not affect
   runtime behavior; the place compiles and runs. The count is down from 202 to
-  126; burn the rest down, then flip the CI type-check step to a blocking gate.
+  115; burn the rest down, then flip the CI type-check step to a blocking gate.
 
   Nearly all of what remains is one structural pattern in the client controllers
-  (`InventoryController`, `ProfileCardController`, `ReturnSummaryController`,
-  `DonationLeaderboardController`). `StatsPanelController` has already been taken
-  to zero and is the worked example. The recipe, in order:
+  (`InventoryController`, `ProfileCardController`, `DonationLeaderboardController`).
+  `StatsPanelController` and `ReturnSummaryController` have already been taken to
+  zero and are the worked examples. The recipe, in order:
 
   1. **Type the module-level UI handles concretely.** `local topBarButton, panel`
      leaves them inferred as `Instance?`, so class-specific properties
@@ -142,10 +142,13 @@ Run each in Studio (Play Solo and, where noted, Local Server with 2 players).
      between statements), so `panel = Instance.new("Frame")` followed by
      `panel.Size = ...` still reports "could be nil". Build into a local `frame`,
      then `panel = frame` as the last line of the build function.
-  3. **Read them inside a positive `if` block.** A refinement on a module-level
-     local holds inside `if panel then ... end`, but is dropped after an
-     early-return guard (`if not panel then return end`), and a compound
-     `if not enabled or not panel then` does not refine at all.
+  3. **Read them inside a positive `if` block.** This is the part that catches
+     people out: in this luau-lsp version a refinement survives inside
+     `if panel then ... end`, but is dropped after an early-return guard
+     (`if not panel then return end`) -- and a compound `if not a or not b then`
+     does not refine at all. Copying to a function-local first does not help;
+     the access itself has to sit inside the positive block. Keep the early
+     return if it reads better as defensive code, but wrap the access too.
 
   Two things deliberately left alone, because correct types here produce *more*
   advisory noise rather than less:
