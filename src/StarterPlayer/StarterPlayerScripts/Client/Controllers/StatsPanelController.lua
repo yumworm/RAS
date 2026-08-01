@@ -21,7 +21,11 @@ local AnalyticsUIEvent = Remotes:WaitForChild("AnalyticsUIEvent")
 local StatsPanelController = {}
 local StateController: any
 
-local topBarButton, panel, listFrame
+-- Built once by the create path below; typed concretely so assigning
+-- Instance.new(...) narrows them and their class-specific properties resolve.
+local topBarButton: TextButton?
+local panel: Frame?
+local listFrame: ScrollingFrame?
 local statRows: { [string]: TextLabel } = {}
 local featureEnabled = true
 
@@ -102,39 +106,43 @@ local function setRow(key: string, order: number, caption: string, valueText: st
 	value.TextColor3 = color or Color3.fromRGB(235, 235, 240)
 end
 
+-- Everything is built into function-locals and only published to the module-level
+-- handles at the end. Assignment narrows a function-local, so each concrete class
+-- (TextButton / Frame / ScrollingFrame) and its properties resolve; module-level
+-- locals are never narrowed, since a closure could reassign them between statements.
 local function build(parent: ScreenGui)
-	topBarButton = Instance.new("TextButton")
-	topBarButton.Name = "StatsButton"
-	topBarButton.AnchorPoint = Vector2.new(0, 0)
-	topBarButton.Position = UDim2.fromOffset(114, 64) -- just right of the Profile button
-	topBarButton.Size = UDim2.fromOffset(96, 34)
-	topBarButton.BackgroundColor3 = Color3.fromRGB(90, 100, 120)
-	topBarButton.Font = Enum.Font.GothamBold
-	topBarButton.TextSize = 15
-	topBarButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	topBarButton.Text = Text.StatsButton
-	topBarButton.ZIndex = 10
-	topBarButton.Parent = parent
-	styleCorner(topBarButton, 8)
-	topBarButton.MouseButton1Click:Connect(function()
+	local button = Instance.new("TextButton")
+	button.Name = "StatsButton"
+	button.AnchorPoint = Vector2.new(0, 0)
+	button.Position = UDim2.fromOffset(114, 64) -- just right of the Profile button
+	button.Size = UDim2.fromOffset(96, 34)
+	button.BackgroundColor3 = Color3.fromRGB(90, 100, 120)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 15
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.Text = Text.StatsButton
+	button.ZIndex = 10
+	button.Parent = parent
+	styleCorner(button, 8)
+	button.MouseButton1Click:Connect(function()
 		StatsPanelController.Toggle()
 	end)
 
-	panel = Instance.new("Frame")
-	panel.Name = "StatsPanel"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UICfg.StatsPanelSize
-	panel.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
-	panel.BorderSizePixel = 0
-	panel.Visible = false
-	panel.ZIndex = 42
-	panel.Parent = parent
-	styleCorner(panel, 14)
+	local frame = Instance.new("Frame")
+	frame.Name = "StatsPanel"
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Position = UDim2.fromScale(0.5, 0.5)
+	frame.Size = UICfg.StatsPanelSize
+	frame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+	frame.BorderSizePixel = 0
+	frame.Visible = false
+	frame.ZIndex = 42
+	frame.Parent = parent
+	styleCorner(frame, 14)
 	local sizeConstraint = Instance.new("UISizeConstraint")
 	sizeConstraint.MaxSize = Vector2.new(UICfg.StatsPanelSize.X.Offset, UICfg.StatsPanelSize.Y.Offset)
-	sizeConstraint.Parent = panel
-	UIFit.Fit(panel, UICfg.StatsPanelSize.X.Offset, UICfg.StatsPanelSize.Y.Offset)
+	sizeConstraint.Parent = frame
+	UIFit.Fit(frame, UICfg.StatsPanelSize.X.Offset, UICfg.StatsPanelSize.Y.Offset)
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
@@ -145,23 +153,23 @@ local function build(parent: ScreenGui)
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	title.Text = Text.StatsTitle
 	title.ZIndex = 43
-	title.Parent = panel
+	title.Parent = frame
 
-	listFrame = Instance.new("ScrollingFrame")
-	listFrame.Name = "List"
-	listFrame.Position = UDim2.fromOffset(20, 46)
-	listFrame.Size = UDim2.new(1, -40, 1, -104)
-	listFrame.BackgroundTransparency = 1
-	listFrame.BorderSizePixel = 0
-	listFrame.ScrollBarThickness = 6
-	listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-	listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	listFrame.ZIndex = 43
-	listFrame.Parent = panel
+	local list = Instance.new("ScrollingFrame")
+	list.Name = "List"
+	list.Position = UDim2.fromOffset(20, 46)
+	list.Size = UDim2.new(1, -40, 1, -104)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 6
+	list.CanvasSize = UDim2.new(0, 0, 0, 0)
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ZIndex = 43
+	list.Parent = frame
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 3)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = listFrame
+	layout.Parent = list
 
 	local close = Instance.new("TextButton")
 	close.Name = "Close"
@@ -174,11 +182,14 @@ local function build(parent: ScreenGui)
 	close.TextColor3 = Color3.fromRGB(255, 255, 255)
 	close.Text = Text.Close
 	close.ZIndex = 43
-	close.Parent = panel
+	close.Parent = frame
 	styleCorner(close, 10)
 	close.MouseButton1Click:Connect(function()
 		StatsPanelController.Close()
 	end)
+
+	-- Publish the finished tree to the module-level handles in one step.
+	topBarButton, panel, listFrame = button, frame, list
 end
 
 --------------------------------------------------------------------------------
@@ -258,13 +269,17 @@ end
 --------------------------------------------------------------------------------
 
 function StatsPanelController.Open()
-	if not featureEnabled or not panel then
+	if not featureEnabled then
 		return
 	end
-	render()
-	panel.Visible = true
-	-- Developer-only ping (rate-limited + allowlisted server-side).
-	AnalyticsUIEvent:FireServer("stats_panel_opened")
+	-- Positive-block form (same as Close below): a refinement on a module-level
+	-- local holds inside the `if`, but is dropped after an early-return guard.
+	if panel then
+		render()
+		panel.Visible = true
+		-- Developer-only ping (rate-limited + allowlisted server-side).
+		AnalyticsUIEvent:FireServer("stats_panel_opened")
+	end
 end
 
 function StatsPanelController.Close()

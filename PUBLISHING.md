@@ -123,9 +123,38 @@ Run each in Studio (Play Solo and, where noted, Local Server with 2 players).
 
 ## 9. Known follow-ups (not launch blockers)
 
-- **Strict type-check burn-down.** `luau-lsp analyze` currently reports strict-mode
-  findings (mostly optional-nil narrowing and `Instance?` UI locals). CI runs the
-  type check as **advisory** (non-blocking). These are annotation-level issues and
-  do not affect runtime behavior; the place compiles and runs. Burn the count down
-  over time, then flip the CI type-check step to a blocking gate.
+- **Strict type-check burn-down.** `luau-lsp analyze` runs **advisory**
+  (non-blocking) in CI. These are annotation-level issues that do not affect
+  runtime behavior; the place compiles and runs. The count is down from 202 to
+  126; burn the rest down, then flip the CI type-check step to a blocking gate.
+
+  Nearly all of what remains is one structural pattern in the client controllers
+  (`InventoryController`, `ProfileCardController`, `ReturnSummaryController`,
+  `DonationLeaderboardController`). `StatsPanelController` has already been taken
+  to zero and is the worked example. The recipe, in order:
+
+  1. **Type the module-level UI handles concretely.** `local topBarButton, panel`
+     leaves them inferred as `Instance?`, so class-specific properties
+     (`.ScrollBarThickness`, `.Text`) do not resolve. Declare them
+     `local panel: Frame?`, `local list: ScrollingFrame?`, etc.
+  2. **Build into function-locals, publish once at the end.** Assignment narrows a
+     function-local but never a module-level local (a closure could reassign it
+     between statements), so `panel = Instance.new("Frame")` followed by
+     `panel.Size = ...` still reports "could be nil". Build into a local `frame`,
+     then `panel = frame` as the last line of the build function.
+  3. **Read them inside a positive `if` block.** A refinement on a module-level
+     local holds inside `if panel then ... end`, but is dropped after an
+     early-return guard (`if not panel then return end`), and a compound
+     `if not enabled or not panel then` does not refine at all.
+
+  Two things deliberately left alone, because correct types here produce *more*
+  advisory noise rather than less:
+  - Annotating `Runtime.Get` as returning `RuntimeState?` is accurate, but
+    luau-lsp 1.32.1 does not refine an optional returned across a module
+    boundary, so every one of the ~30 call sites reports "could be nil" despite a
+    correct `if not runtime then return end` guard. Fixing it would mean adding
+    `assert()` to hot paths purely to satisfy an advisory check.
+  - The `pcall(fn)` sites reported as "Function only returns 1 value, but 2 are
+    required" are a checker arity artifact; the error-handling code is correct.
+
 - **selene lint** runs advisory in CI for the same reason.
